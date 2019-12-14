@@ -265,7 +265,7 @@ if __name__ == '__main__':
     )
     
     dataset = MultiResolutionDataset(args.path, transform)
-    loader = DataLoader(dataset, batch_size=args.batch, shuffle=True)
+    loader = DataLoader(dataset, batch_size=args.batch, sampler=data_sampler(dataset, shuffle=True, distributed=args.distributed))
     
     if get_rank() == 0 and wandb is not None and args.wandb:
         wandb.init(project='stylegan 2')
