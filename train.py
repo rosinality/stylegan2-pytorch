@@ -165,7 +165,7 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
         if regularize:
             path_loss, mean_path_length = g_path_regularize(fake_img, latents, mean_path_length)
             (args.path_regularize * path_loss).backward()
-            mean_path_length = reduce_sum(mean_path_length) / get_world_size()
+            mean_path_length_avg = reduce_sum(mean_path_length) / get_world_size()
             
         loss_dict['path'] = path_loss
             
@@ -181,7 +181,7 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
             
         if get_rank() == 0:
             pbar.set_description((f'd: {d_loss_val:.4f}; g: {g_loss_val:.4f}; r1: {r1_val:.4f}; '
-                                f'path: {path_loss_val:.4f}; mean path: {mean_path_length:.4f}'))
+                                f'path: {path_loss_val:.4f}; mean path: {mean_path_length_avg:.4f}'))
             
             if wandb and args.wandb:
                 wandb.log({'Generator': g_loss_val, 'Discriminator': d_loss_val, 'R1': r1_val,
