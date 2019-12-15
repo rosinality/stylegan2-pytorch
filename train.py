@@ -129,9 +129,9 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
         fake_img, _ = generator(noise1)
         fake_pred = discriminator(fake_img)
         
-        regularize = i % args.regularize_every == 0
+        d_regularize = i % args.d_reg_every == 0
         
-        if regularize:
+        if d_regularize:
             real_img.requires_grad = True
         
         real_pred = discriminator(real_img)
@@ -140,15 +140,16 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
         loss_dict['d'] = d_loss
         
         discriminator.zero_grad()
-        d_loss.backward(retain_graph=regularize)
+        d_loss.backward(retain_graph=d_regularize)
+        d_optim.step()
         
-        if regularize:
+        if d_regularize:
             r1_loss = d_r1_loss(real_pred, real_img)
-            (args.r1 / 2 * r1_loss).backward()
+            discriminator.zero_grad()
+            (args.r1 / 2 * r1_loss * d_regularize).backward()
+            d_optim.step()
         
         loss_dict['r1'] = r1_loss
-            
-        d_optim.step()
         
         requires_grad(generator, True)
         requires_grad(discriminator, False)
@@ -159,17 +160,21 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
         
         loss_dict['g'] = g_loss
         
-        generator.zero_grad()
-        g_loss.backward(retain_graph=regularize)
+        g_regularize = i % args.g_reg_every == 0
         
-        if regularize:
+        generator.zero_grad()
+        g_loss.backward(retain_graph=g_regularize)
+        g_optim.step()
+        
+        if g_regularize:
+            generator.zero_grad()
             path_loss, mean_path_length = g_path_regularize(fake_img, latents, mean_path_length)
-            (args.path_regularize * path_loss).backward()
+            (args.path_regularize * path_loss * g_regularize).backward()
             mean_path_length_avg = reduce_sum(mean_path_length) / get_world_size()
+            g_optim.step()
             
         loss_dict['path'] = path_loss
-            
-        g_optim.step()
+        
         accumulate(g_ema, generator.module)
         
         loss_reduced = reduce_loss_dict(loss_dict)
@@ -210,7 +215,8 @@ if __name__ == '__main__':
     parser.add_argument('--size', type=int, default=256)
     parser.add_argument('--r1', type=float, default=10)
     parser.add_argument('--path_regularize', type=float, default=2)
-    parser.add_argument('--regularize_every', type=int, default=16)
+    parser.add_argument('--d_reg_every', type=int, default=16)
+    parser.add_argument('--g_reg_every', type=int, default=4)
     parser.add_argument('--mixing', type=float, default=0.9)
     parser.add_argument('--lr', type=float, default=0.002)
     parser.add_argument('--wandb', action='store_true')
@@ -252,9 +258,12 @@ if __name__ == '__main__':
             output_device=args.local_rank,
             broadcast_buffers=False
         )
+        
+    g_reg_ratio = args.g_reg_every / (args.g_reg_every + 1)
+    d_reg_ratio = args.d_reg_every / (args.d_reg_every + 1)
     
-    g_optim = optim.Adam(generator.parameters(), lr=args.lr, betas=(0, 0.99))
-    d_optim = optim.Adam(discriminator.parameters(), lr=args.lr, betas=(0, 0.99))
+    g_optim = optim.Adam(generator.parameters(), lr=args.lr * g_reg_ratio, betas=(0 * g_reg_ratio, 0.99 * g_reg_ratio))
+    d_optim = optim.Adam(discriminator.parameters(), lr=args.lr * d_reg_ratio, betas=(0 * d_reg_ratio, 0.99 * d_reg_ratio))
     
     transform = transforms.Compose(
         [
