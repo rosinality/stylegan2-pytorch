@@ -314,12 +314,12 @@ if __name__ == '__main__':
     g_optim = optim.Adam(
         generator.parameters(),
         lr=args.lr * g_reg_ratio,
-        betas=(0 * g_reg_ratio, 0.99 ** g_reg_ratio),
+        betas=(0 ** g_reg_ratio, 0.99 ** g_reg_ratio),
     )
     d_optim = optim.Adam(
         discriminator.parameters(),
         lr=args.lr * d_reg_ratio,
-        betas=(0 * d_reg_ratio, 0.99 ** d_reg_ratio),
+        betas=(0 ** d_reg_ratio, 0.99 ** d_reg_ratio),
     )
 
     transform = transforms.Compose(
