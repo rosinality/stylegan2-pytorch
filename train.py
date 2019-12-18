@@ -263,6 +263,7 @@ if __name__ == '__main__':
     parser.add_argument('--d_reg_every', type=int, default=16)
     parser.add_argument('--g_reg_every', type=int, default=4)
     parser.add_argument('--mixing', type=float, default=0.9)
+    parser.add_argument('--ckpt', type=str, default=None)
     parser.add_argument('--lr', type=float, default=0.002)
     parser.add_argument('--wandb', action='store_true')
     parser.add_argument('--local_rank', type=int, default=0)
@@ -335,6 +336,7 @@ if __name__ == '__main__':
         dataset,
         batch_size=args.batch,
         sampler=data_sampler(dataset, shuffle=True, distributed=args.distributed),
+        drop_last=True
     )
 
     if get_rank() == 0 and wandb is not None and args.wandb:

@@ -452,21 +452,21 @@ class Generator(nn.Module):
 
             in_channel = out_channel
 
-        self.n_layer = len(self.convs) + len(self.to_rgbs) + 1 + 1
+        self.n_latent = log_size * 2 - 2
 
     def forward(self, styles, return_latents=False):
         styles = [self.style(s) for s in styles]
 
         if len(styles) < 2:
-            inject_index = self.n_layer
+            inject_index = self.n_latent
 
             latent = styles[0].unsqueeze(1).repeat(1, inject_index, 1)
 
         else:
-            inject_index = random.randint(1, self.n_layer - 1)
+            inject_index = random.randint(1, self.n_latent - 1)
 
             latent = styles[0].unsqueeze(1).repeat(1, inject_index, 1)
-            latent2 = styles[1].unsqueeze(1).repeat(1, self.n_layer - inject_index, 1)
+            latent2 = styles[1].unsqueeze(1).repeat(1, self.n_latent - inject_index, 1)
 
             latent = torch.cat([latent, latent2], 1)
 
@@ -475,7 +475,7 @@ class Generator(nn.Module):
 
         skip = self.to_rgb1(out, latent[:, 1])
 
-        i = 2
+        i = 1
 
         for conv1, conv2, to_rgb in zip(
             self.convs[::2], self.convs[1::2], self.to_rgbs
@@ -484,7 +484,7 @@ class Generator(nn.Module):
             out = conv2(out, latent[:, i + 1])
             skip = to_rgb(out, latent[:, i + 2], skip)
 
-            i += 3
+            i += 2
 
         image = skip
 
@@ -613,9 +613,7 @@ class Discriminator(nn.Module):
         stddev = out.view(
             group, -1, self.stddev_feat, channel // self.stddev_feat, height, width
         )
-        stddev = stddev - stddev.mean(0, keepdim=True)
-        stddev = stddev.pow(2).mean(0)
-        stddev = torch.sqrt(stddev + 1e-8)
+        stddev = torch.sqrt(stddev.var(0, unbiased=False) + 1e-8)
         stddev = stddev.mean([2, 3, 4], keepdims=True).squeeze(2)
         stddev = stddev.repeat(group, 1, height, width)
         out = torch.cat([out, stddev], 1)
