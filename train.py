@@ -7,6 +7,7 @@ import torch
 from torch import nn, autograd, optim
 from torch.nn import functional as F
 from torch.utils import data
+import torch.distributed as dist
 from torchvision import transforms, utils
 from tqdm import tqdm
 
@@ -24,6 +25,7 @@ from distributed import (
     reduce_loss_dict,
     reduce_sum,
     get_world_size,
+    gather_grad,
 )
 
 
@@ -68,7 +70,7 @@ def d_r1_loss(real_pred, real_img):
     grad_real, = autograd.grad(
         outputs=real_pred.sum(), inputs=real_img, create_graph=True
     )
-    grad_penalty = (grad_real.view(grad_real.shape[0], -1).norm(2, dim=1) ** 2).mean()
+    grad_penalty = grad_real.pow(2).view(grad_real.shape[0], -1).sum(1).mean()
 
     return grad_penalty
 
@@ -88,13 +90,11 @@ def g_path_regularize(fake_img, latents, mean_path_length, decay=0.01):
     )
     path_lengths = torch.sqrt(grad.pow(2).sum(2).mean(1))
 
-    path_mean = mean_path_length + decay * (
-        path_lengths.detach().mean() - mean_path_length
-    )
+    path_mean = mean_path_length + decay * (path_lengths.mean() - mean_path_length)
 
     path_penalty = (path_lengths - path_mean).pow(2).mean()
 
-    return path_penalty, path_mean
+    return path_penalty, path_mean.detach(), path_lengths
 
 
 def make_noise(batch, latent_dim, n_noise, device):
@@ -120,6 +120,7 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
     r1_loss = torch.tensor(0.0, device=device)
     g_loss_val = 0
     path_loss = torch.tensor(0.0, device=device)
+    path_lengths = torch.tensor(0.0, device=device)
     loss_dict = {}
 
     sample_z = torch.randn(8 * 8, args.latent, device=device)
@@ -153,9 +154,12 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
         d_loss = d_logistic_loss(real_pred, fake_pred)
 
         loss_dict['d'] = d_loss
+        loss_dict['real_score'] = real_pred.mean()
+        loss_dict['fake_score'] = fake_pred.mean()
 
         discriminator.zero_grad()
         d_loss.backward(retain_graph=d_regularize)
+
         d_optim.step()
 
         if d_regularize:
@@ -163,6 +167,7 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
 
             discriminator.zero_grad()
             (args.r1 / 2 * r1_loss * args.d_reg_every).backward()
+            gather_grad(discriminator.parameters())
             d_optim.step()
 
         loss_dict['r1'] = r1_loss
@@ -177,23 +182,42 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
         loss_dict['g'] = g_loss
 
         g_regularize = i % args.g_reg_every == 0
+        # g_regularize = False
+        # mean_path_length_avg = 0
 
         generator.zero_grad()
         g_loss.backward(retain_graph=g_regularize)
         g_optim.step()
 
         if g_regularize:
-            path_loss, mean_path_length = g_path_regularize(
+            if args.path_batch_shrink > 1:
+                if args.mixing > 0 and random.random() < args.mixing:
+                    noise3 = make_noise(args.batch, args.latent, 2, device)
+
+                else:
+                    noise3 = make_noise(args.batch, args.latent, 1, device)
+                    noise3 = [noise3]
+
+                fake_img, latents = generator(noise3, return_latents=True)
+
+            path_loss, mean_path_length, path_lengths = g_path_regularize(
                 fake_img, latents, mean_path_length
             )
 
             generator.zero_grad()
-            (args.path_regularize * path_loss * args.g_reg_every).backward()
+            weighted_path_loss = args.path_regularize * args.g_reg_every * path_loss
+
+            if args.path_batch_shrink:
+                weighted_path_loss += 0 * fake_img[0, 0, 0, 0]
+
+            weighted_path_loss.backward()
+            gather_grad(generator.parameters())
             g_optim.step()
 
             mean_path_length_avg = reduce_sum(mean_path_length) / get_world_size()
 
         loss_dict['path'] = path_loss
+        loss_dict['path_length'] = path_lengths.mean()
 
         accumulate(g_ema, generator.module)
 
@@ -203,6 +227,9 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
         g_loss_val = loss_reduced['g'].mean().item()
         r1_val = loss_reduced['r1'].mean().item()
         path_loss_val = loss_reduced['path'].mean().item()
+        real_score_val = loss_reduced['real_score'].mean().item()
+        fake_score_val = loss_reduced['fake_score'].mean().item()
+        path_length_val = loss_reduced['path_length'].mean().item()
 
         if get_rank() == 0:
             pbar.set_description(
@@ -220,6 +247,9 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
                         'R1': r1_val,
                         'Path Length Regularization': path_loss_val,
                         'Mean Path Length': mean_path_length,
+                        'Real Score': real_score_val,
+                        'Fake Score': fake_score_val,
+                        'Path Length': path_length_val,
                     }
                 )
 
@@ -259,12 +289,13 @@ if __name__ == '__main__':
     parser.add_argument('--size', type=int, default=256)
     parser.add_argument('--r1', type=float, default=10)
     parser.add_argument('--path_regularize', type=float, default=2)
-    parser.add_argument('--path_batch_shrink', type=int, default=2)
+    parser.add_argument('--path_batch_shrink', type=int, default=1)
     parser.add_argument('--d_reg_every', type=int, default=16)
     parser.add_argument('--g_reg_every', type=int, default=4)
     parser.add_argument('--mixing', type=float, default=0.9)
     parser.add_argument('--ckpt', type=str, default=None)
     parser.add_argument('--lr', type=float, default=0.002)
+    parser.add_argument('--channel_multiplier', type=int, default=2)
     parser.add_argument('--wandb', action='store_true')
     parser.add_argument('--local_rank', type=int, default=0)
 
@@ -280,7 +311,6 @@ if __name__ == '__main__':
 
     args.latent = 512
     args.n_mlp = 8
-    args.channel_multiplier = 2
 
     generator = Generator(
         args.size, args.latent, args.n_mlp, channel_multiplier=args.channel_multiplier
@@ -336,7 +366,7 @@ if __name__ == '__main__':
         dataset,
         batch_size=args.batch,
         sampler=data_sampler(dataset, shuffle=True, distributed=args.distributed),
-        drop_last=True
+        drop_last=True,
     )
 
     if get_rank() == 0 and wandb is not None and args.wandb:

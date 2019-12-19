@@ -91,93 +91,63 @@ class Blur(nn.Module):
         return out
 
 
-class EqualLR:
-    def __init__(self, name, lr_mul):
-        self.name = name
-        self.lr_mul = lr_mul
-
-    def compute_weight(self, module):
-        weight = getattr(module, self.name + '_orig')
-        fan_in = functools.reduce(operator.mul, weight.shape[1:])
-        std = 1 / math.sqrt(fan_in)
-
-        if self.lr_mul != 1:
-            std *= self.lr_mul
-
-        return weight * std
-
-    @staticmethod
-    def apply(module, name, lr_mul):
-        fn = EqualLR(name, lr_mul)
-
-        weight = getattr(module, name)
-        del module._parameters[name]
-        module.register_parameter(name + '_orig', nn.Parameter(weight.data))
-        module.register_forward_pre_hook(fn)
-
-        return fn
-
-    def __call__(self, module, input):
-        weight = self.compute_weight(module)
-        setattr(module, self.name, weight)
-
-
-def equal_lr(module, name='weight', lr_mul=1):
-    EqualLR.apply(module, name, lr_mul)
-
-    return module
-
-
 class EqualConv2d(nn.Module):
-    def __init__(self, *args, **kwargs):
+    def __init__(
+        self, in_channel, out_channel, kernel_size, stride=1, padding=0, bias=True
+    ):
         super().__init__()
 
-        conv = nn.Conv2d(*args, **kwargs)
-        conv.weight.data.normal_()
+        self.weight = nn.Parameter(
+            torch.randn(out_channel, in_channel, kernel_size, kernel_size)
+        )
+        self.scale = 1 / math.sqrt(in_channel * kernel_size ** 2)
 
-        if conv.bias is not None:
-            conv.bias.data.zero_()
+        self.stride = stride
+        self.padding = padding
 
-        self.conv = equal_lr(conv)
+        if bias:
+            self.bias = nn.Parameter(torch.zeros(out_channel))
+
+        else:
+            self.bias = None
 
     def forward(self, input):
-        return self.conv(input)
+        out = F.conv2d(
+            input,
+            self.weight * self.scale,
+            bias=self.bias,
+            stride=self.stride,
+            padding=self.padding,
+        )
+
+        return out
 
 
 class EqualLinear(nn.Module):
-    def __init__(self, in_dim, out_dim, bias=0, lr_mul=1, activation=None):
+    def __init__(
+        self, in_dim, out_dim, bias=True, bias_init=0, lr_mul=1, activation=None
+    ):
         super().__init__()
 
-        linear_bias = lr_mul == 1 and activation != 'fused_lrelu'
+        self.weight = nn.Parameter(torch.randn(out_dim, in_dim).div_(lr_mul))
 
-        linear = nn.Linear(in_dim, out_dim, bias=linear_bias)
-        linear.weight.data.normal_().div_(lr_mul)
+        if bias:
+            self.bias = nn.Parameter(torch.zeros(out_dim).fill_(bias_init))
 
-        if linear_bias:
-            linear.bias.data.fill_(bias)
+        else:
             self.bias = None
 
-        else:
-            self.bias = nn.Parameter(torch.zeros(out_dim))
+        self.activation = activation
 
-        if activation == 'fused_lrelu':
-            self.activate = True
-
-        else:
-            self.activate = False
-
-        self.linear = equal_lr(linear, lr_mul=lr_mul)
-        self.lr_mul = lr_mul
+        self.scale = (1 / math.sqrt(in_dim)) * lr_mul
 
     def forward(self, input):
-        out = self.linear(input)
-
-        if self.activate:
-            out = fused_leaky_relu(out, self.bias * self.lr_mul)
+        if self.activation:
+            out = F.linear(input, self.weight * self.scale)
+            out = fused_leaky_relu(out, self.bias * self.scale)
 
         else:
-            if self.bias is not None:
-                out = out + self.bias * self.lr_mul
+            out = F.linear(input, self.weight * self.scale, bias=self.bias * self.scale)
 
         return out
 
@@ -239,7 +209,7 @@ class ModulatedConv2d(nn.Module):
             torch.randn(1, out_channel, in_channel, kernel_size, kernel_size)
         )
 
-        self.modulation = EqualLinear(style_dim, in_channel, bias=1)
+        self.modulation = EqualLinear(style_dim, in_channel, bias_init=1)
 
         self.demodulate = demodulate
 
@@ -552,7 +522,7 @@ class ResBlock(nn.Module):
         self.conv2 = ConvLayer(in_channel, out_channel, 3, downsample=True)
 
         self.skip = ConvLayer(
-            in_channel, out_channel, 1, downsample=True, activate=False
+            in_channel, out_channel, 1, downsample=True, activate=False, bias=False
         )
 
     def forward(self, input):
