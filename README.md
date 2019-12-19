@@ -16,7 +16,7 @@ This will convert images to jpeg and pre-resizes it. This implementation does no
 
 Then you can train model in distributed settings
 
-> python -m torch.distributed.launch --nproc_per_node=N_GPU --master_port=PORT train.py --batch BATCH_SIZE LMDB_PATH
+> python -m torch.distributed.launch --nproc_per_node=N_GPU --master_port=PORT train.py --batch BATCH_SIZE --g_reg_every 8 LMDB_PATH
 
 train.py supports Weights & Biases logging. If you want to use it, add --wandb arguments to the script.
 
