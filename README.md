@@ -2,9 +2,9 @@
 
 Implementation of Analyzing and Improving the Image Quality of StyleGAN (https://arxiv.org/abs/1912.04958) in PyTorch
 
-## WARNING
+## Notice
 
-Currently I didn't fully validated my implementations. Also I have tried implement model and trainers to closely match original implementations as much as possible, but I could have missed details. So pleas use this implementation with cautions.
+I have tried to match official implementation as close as possible, but maybe there are some details I missed. So please use this implementation with care.
 
 ## Usage
 
@@ -19,3 +19,9 @@ Then you can train model in distributed settings
 > python -m torch.distributed.launch --nproc_per_node=N_GPU --master_port=PORT train.py --batch BATCH_SIZE LMDB_PATH
 
 train.py supports Weights & Biases logging. If you want to use it, add --wandb arguments to the script.
+
+## Samples
+
+![Sample with truncation](sample.png)
+
+At 40,000 iterations. (trained on 1.28M images)

@@ -55,10 +55,12 @@ def reduce_sum(tensor):
 
 
 def gather_grad(params):
+    world_size = get_world_size()
+
     for param in params:
         if param.grad is not None:
             dist.all_reduce(param.grad.data, op=dist.ReduceOp.SUM)
-            param.grad.data.div_(get_world_size())
+            param.grad.data.div_(world_size)
 
 
 def all_gather(data):

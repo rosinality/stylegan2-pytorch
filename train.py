@@ -231,6 +231,19 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
         fake_score_val = loss_reduced['fake_score'].mean().item()
         path_length_val = loss_reduced['path_length'].mean().item()
 
+        if get_rank() == 0 or get_rank() == 1:
+            if (i + 1) % 256 == 0:
+                torch.save(
+                    {
+                        'g': generator.module.state_dict(),
+                        'd': discriminator.module.state_dict(),
+                        'g_ema': g_ema.state_dict(),
+                        'g_optim': g_optim.state_dict(),
+                        'd_optim': d_optim.state_dict(),
+                    },
+                    f'checkpoint/{get_rank()}-{str(i).zfill(6)}.pt',
+                )
+
         if get_rank() == 0:
             pbar.set_description(
                 (
