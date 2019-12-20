@@ -360,7 +360,7 @@ class Generator(nn.Module):
         lr_mlp=0.01,
     ):
         super().__init__()
-        
+
         self.style_dim = style_dim
 
         layers = [PixelNorm()]
@@ -425,24 +425,28 @@ class Generator(nn.Module):
             in_channel = out_channel
 
         self.n_latent = log_size * 2 - 2
-        
-        
-    def mean_latent(self, n_latent):
-        latent_in = torch.randn(n_latent, self.style_dim, device=self.input.input.device)
-        latent = self.style(latent_in).mean(0, keepdim=True)
-        
-        return latent
-        
 
-    def forward(self, styles, return_latents=False, truncation=0, truncation_latent=None):
+    def mean_latent(self, n_latent):
+        latent_in = torch.randn(
+            n_latent, self.style_dim, device=self.input.input.device
+        )
+        latent = self.style(latent_in).mean(0, keepdim=True)
+
+        return latent
+
+    def forward(
+        self, styles, return_latents=False, truncation=0, truncation_latent=None
+    ):
         styles = [self.style(s) for s in styles]
-        
-        if truncation > 0:
+
+        if truncation < 1:
             style_t = []
-            
+
             for style in styles:
-                style_t.append(style + truncation * (truncation_latent - style))
-                
+                style_t.append(
+                    truncation_latent + truncation * (style - truncation_latent)
+                )
+
             styles = style_t
 
         if len(styles) < 2:
