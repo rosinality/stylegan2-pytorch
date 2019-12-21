@@ -24,4 +24,4 @@ train.py supports Weights & Biases logging. If you want to use it, add --wandb a
 
 ![Sample with truncation](sample.png)
 
-At 40,000 iterations. (trained on 1.28M images)
+At 110,000 iterations. (trained on 3.52M images)

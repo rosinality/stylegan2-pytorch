@@ -269,10 +269,10 @@ class NoiseInjection(nn.Module):
 
         self.weight = nn.Parameter(torch.zeros(1))
 
-    def forward(self, image):
-        batch, _, height, width = image.shape
-
-        noise = image.new_empty(batch, 1, height, width).normal_()
+    def forward(self, image, noise=None):
+        if noise is None:
+            batch, _, height, width = image.shape
+            noise = image.new_empty(batch, 1, height, width).normal_()
 
         return image + self.weight * noise
 
@@ -318,9 +318,9 @@ class StyledConv(nn.Module):
         # self.activate = ScaledLeakyReLU(0.2)
         self.activate = FusedLeakyReLU(out_channel)
 
-    def forward(self, input, style):
+    def forward(self, input, style, noise=None):
         out = self.conv(input, style)
-        out = self.noise(out)
+        out = self.noise(out, noise=noise)
         # out = out + self.bias
         out = self.activate(out)
 
@@ -361,6 +361,8 @@ class Generator(nn.Module):
     ):
         super().__init__()
 
+        self.size = size
+
         self.style_dim = style_dim
 
         layers = [PixelNorm()]
@@ -374,7 +376,7 @@ class Generator(nn.Module):
 
         self.style = nn.Sequential(*layers)
 
-        channels = {
+        self.channels = {
             4: 512,
             8: 512,
             16: 512,
@@ -386,22 +388,22 @@ class Generator(nn.Module):
             1024: 16 * channel_multiplier,
         }
 
-        self.input = ConstantInput(channels[4])
+        self.input = ConstantInput(self.channels[4])
         self.conv1 = StyledConv(
-            channels[4], channels[4], 3, style_dim, blur_kernel=blur_kernel
+            self.channels[4], self.channels[4], 3, style_dim, blur_kernel=blur_kernel
         )
-        self.to_rgb1 = ToRGB(channels[4], style_dim, upsample=False)
+        self.to_rgb1 = ToRGB(self.channels[4], style_dim, upsample=False)
 
-        log_size = int(math.log(size, 2))
+        self.log_size = int(math.log(size, 2))
 
         self.convs = nn.ModuleList()
         self.upsamples = nn.ModuleList()
         self.to_rgbs = nn.ModuleList()
 
-        in_channel = channels[4]
+        in_channel = self.channels[4]
 
-        for i in range(3, log_size + 1):
-            out_channel = channels[2 ** i]
+        for i in range(3, self.log_size + 1):
+            out_channel = self.channels[2 ** i]
 
             self.convs.append(
                 StyledConv(
@@ -424,7 +426,18 @@ class Generator(nn.Module):
 
             in_channel = out_channel
 
-        self.n_latent = log_size * 2 - 2
+        self.n_latent = self.log_size * 2 - 2
+
+    def make_noise(self):
+        device = self.input.input.device
+
+        noises = [torch.randn(1, 1, 2 ** 2, 2 ** 2, device=device)]
+
+        for i in range(3, self.log_size + 1):
+            for _ in range(2):
+                noises.append(torch.randn(1, 1, 2 ** i, 2 ** i, device=device))
+
+        return noises
 
     def mean_latent(self, n_latent):
         latent_in = torch.randn(
@@ -434,10 +447,23 @@ class Generator(nn.Module):
 
         return latent
 
+    def get_latent(self, input):
+        return self.style(input)
+
     def forward(
-        self, styles, return_latents=False, truncation=0, truncation_latent=None
+        self,
+        styles,
+        return_latents=False,
+        truncation=1,
+        truncation_latent=None,
+        input_is_latent=False,
+        noise=None,
     ):
-        styles = [self.style(s) for s in styles]
+        if not input_is_latent:
+            styles = [self.style(s) for s in styles]
+
+        if noise is None:
+            noise = [None] * (2 * (self.log_size - 2) + 1)
 
         if truncation < 1:
             style_t = []
@@ -463,20 +489,22 @@ class Generator(nn.Module):
             latent = torch.cat([latent, latent2], 1)
 
         out = self.input(latent)
-        out = self.conv1(out, latent[:, 0])
+        out = self.conv1(out, latent[:, 0], noise=noise[0])
 
         skip = self.to_rgb1(out, latent[:, 1])
 
         i = 1
+        noise_i = 1
 
         for conv1, conv2, to_rgb in zip(
             self.convs[::2], self.convs[1::2], self.to_rgbs
         ):
-            out = conv1(out, latent[:, i])
-            out = conv2(out, latent[:, i + 1])
+            out = conv1(out, latent[:, i], noise=noise[noise_i])
+            out = conv2(out, latent[:, i + 1], noise=noise[noise_i + 1])
             skip = to_rgb(out, latent[:, i + 2], skip)
 
             i += 2
+            noise_i += 2
 
         image = skip
 
