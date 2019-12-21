@@ -11,6 +11,7 @@ from torchvision.models import inception_v3, Inception3
 import numpy as np
 from tqdm import tqdm
 
+from inception import InceptionV3
 from dataset import MultiResolutionDataset
 
 
@@ -48,9 +49,10 @@ class Inception3Feature(Inception3):
 
 
 def load_patched_inception_v3():
-    inception = inception_v3(pretrained=True)
-    inception_feat = Inception3Feature()
-    inception_feat.load_state_dict(inception.state_dict())
+    # inception = inception_v3(pretrained=True)
+    # inception_feat = Inception3Feature()
+    # inception_feat.load_state_dict(inception.state_dict())
+    inception_feat = InceptionV3([3], normalize_input=False)
 
     return inception_feat
 
@@ -63,7 +65,7 @@ def extract_features(loader, inception, device):
 
     for img in pbar:
         img = img.to(device)
-        feature = inception(img)
+        feature = inception(img)[0].view(img.shape[0], -1)
         feature_list.append(feature.to('cpu'))
 
     features = torch.cat(feature_list, 0)

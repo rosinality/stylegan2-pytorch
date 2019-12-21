@@ -22,7 +22,7 @@ def extract_feature_from_samples(
     for batch in tqdm(batch_sizes):
         latent = torch.randn(batch, 512, device=device)
         img, _ = g([latent], truncation=truncation, truncation_latent=truncation_latent)
-        feat = inception(img)
+        feat = inception(img)[0].view(img.shape[0], -1)
         features.append(feat.to('cpu'))
 
     features = torch.cat(features, 0)
