@@ -81,6 +81,8 @@ if __name__ == '__main__':
     )
     parser.add_argument('--size', type=int, default=256)
     parser.add_argument('--batch', default=64, type=int, help='batch size')
+    parser.add_argument('--n_sample', type=int, default=50000)
+    parser.add_argument('--flip', action='store_true')
     parser.add_argument('path', metavar='PATH', help='path to datset lmdb file')
 
     args = parser.parse_args()
@@ -89,13 +91,19 @@ if __name__ == '__main__':
     inception = nn.DataParallel(inception).eval().to(device)
 
     transform = transforms.Compose(
-        [transforms.ToTensor(), transforms.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])]
+        [
+            transforms.RandomHorizontalFlip(p=0.5 if args.flip else 0),
+            transforms.ToTensor(),
+            transforms.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5]),
+        ]
     )
 
     dset = MultiResolutionDataset(args.path, transform=transform, resolution=args.size)
     loader = DataLoader(dset, batch_size=args.batch, num_workers=4)
 
     features = extract_features(loader, inception, device).numpy()
+
+    features = features[: args.n_sample]
 
     print(f'extracted {features.shape[0]} features')
 

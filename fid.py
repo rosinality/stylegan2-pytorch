@@ -2,6 +2,7 @@ import argparse
 import pickle
 
 import torch
+from torch import nn
 import numpy as np
 from scipy import linalg
 from tqdm import tqdm
@@ -64,7 +65,7 @@ if __name__ == '__main__':
     parser.add_argument('--truncation', type=float, default=1)
     parser.add_argument('--truncation_mean', type=int, default=4096)
     parser.add_argument('--batch', type=int, default=64)
-    parser.add_argument('--n_sample', type=int, default=5000)
+    parser.add_argument('--n_sample', type=int, default=50000)
     parser.add_argument('--size', type=int, default=256)
     parser.add_argument('--inception', type=str, default=None, required=True)
     parser.add_argument('ckpt', metavar='CHECKPOINT')
@@ -75,6 +76,7 @@ if __name__ == '__main__':
 
     g = Generator(args.size, 512, 8).to(device)
     g.load_state_dict(ckpt['g_ema'])
+    g = nn.DataParallel(g)
     g.eval()
 
     if args.truncation < 1:
@@ -84,7 +86,7 @@ if __name__ == '__main__':
     else:
         mean_latent = None
 
-    inception = load_patched_inception_v3().to(device)
+    inception = nn.DataParallel(load_patched_inception_v3()).to(device)
     inception.eval()
 
     features = extract_feature_from_samples(
