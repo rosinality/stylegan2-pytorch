@@ -106,6 +106,12 @@ def make_noise(batch, latent_dim, n_noise, device):
     return noises
 
 
+def set_grad_none(model, targets):
+    for n, p in model.named_parameters():
+        if n in targets:
+            p.grad = None
+
+
 def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, device):
     loader = sample_data(loader)
 
@@ -123,6 +129,16 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
     path_lengths = torch.tensor(0.0, device=device)
     mean_path_length_avg = 0
     loss_dict = {}
+
+    none_grads = set()
+    test_in = torch.randn(1, args.latent, device=device)
+    fake, latent = generator.module([test_in], return_latents=True)
+    path = g_path_regularize(fake, latent, 0)
+    path[0].backward()
+
+    for n, p in generator.named_parameters():
+        if p.grad is None:
+            none_grads.add(n)
 
     sample_z = torch.randn(8 * 8, args.latent, device=device)
 
@@ -183,8 +199,6 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
         loss_dict['g'] = g_loss
 
         g_regularize = i % args.g_reg_every == 0
-        # g_regularize = False
-        # mean_path_length_avg = 0
 
         generator.zero_grad()
         g_loss.backward(retain_graph=g_regularize and args.path_batch_shrink == 1)
@@ -216,7 +230,10 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
                 weighted_path_loss += 0 * fake_img[0, 0, 0, 0]
 
             weighted_path_loss.backward()
+
             gather_grad(generator.parameters())
+            set_grad_none(generator, none_grads)
+
             g_optim.step()
 
             mean_path_length_avg = (
@@ -296,9 +313,9 @@ if __name__ == '__main__':
     parser.add_argument('--size', type=int, default=256)
     parser.add_argument('--r1', type=float, default=10)
     parser.add_argument('--path_regularize', type=float, default=2)
-    parser.add_argument('--path_batch_shrink', type=int, default=1)
+    parser.add_argument('--path_batch_shrink', type=int, default=2)
     parser.add_argument('--d_reg_every', type=int, default=16)
-    parser.add_argument('--g_reg_every', type=int, default=8)
+    parser.add_argument('--g_reg_every', type=int, default=4)
     parser.add_argument('--mixing', type=float, default=0.9)
     parser.add_argument('--ckpt', type=str, default=None)
     parser.add_argument('--lr', type=float, default=0.002)
