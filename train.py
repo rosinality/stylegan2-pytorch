@@ -112,7 +112,7 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
     pbar = range(args.iter)
 
     if get_rank() == 0:
-        pbar = tqdm(pbar, dynamic_ncols=True)
+        pbar = tqdm(pbar, dynamic_ncols=True, smoothing=0.01)
 
     mean_path_length = 0
 
@@ -121,6 +121,7 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
     g_loss_val = 0
     path_loss = torch.tensor(0.0, device=device)
     path_lengths = torch.tensor(0.0, device=device)
+    mean_path_length_avg = 0
     loss_dict = {}
 
     sample_z = torch.randn(8 * 8, args.latent, device=device)
@@ -186,16 +187,20 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
         # mean_path_length_avg = 0
 
         generator.zero_grad()
-        g_loss.backward(retain_graph=g_regularize)
+        g_loss.backward(retain_graph=g_regularize and args.path_batch_shrink == 1)
         g_optim.step()
 
         if g_regularize:
             if args.path_batch_shrink > 1:
                 if args.mixing > 0 and random.random() < args.mixing:
-                    noise3 = make_noise(args.batch, args.latent, 2, device)
+                    noise3 = make_noise(
+                        args.batch // args.path_batch_shrink, args.latent, 2, device
+                    )
 
                 else:
-                    noise3 = make_noise(args.batch, args.latent, 1, device)
+                    noise3 = make_noise(
+                        args.batch // args.path_batch_shrink, args.latent, 1, device
+                    )
                     noise3 = [noise3]
 
                 fake_img, latents = generator(noise3, return_latents=True)
@@ -214,7 +219,9 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
             gather_grad(generator.parameters())
             g_optim.step()
 
-            mean_path_length_avg = reduce_sum(mean_path_length) / get_world_size()
+            mean_path_length_avg = (
+                reduce_sum(mean_path_length).item() / get_world_size()
+            )
 
         loss_dict['path'] = path_loss
         loss_dict['path_length'] = path_lengths.mean()
@@ -291,7 +298,7 @@ if __name__ == '__main__':
     parser.add_argument('--path_regularize', type=float, default=2)
     parser.add_argument('--path_batch_shrink', type=int, default=1)
     parser.add_argument('--d_reg_every', type=int, default=16)
-    parser.add_argument('--g_reg_every', type=int, default=4)
+    parser.add_argument('--g_reg_every', type=int, default=8)
     parser.add_argument('--mixing', type=float, default=0.9)
     parser.add_argument('--ckpt', type=str, default=None)
     parser.add_argument('--lr', type=float, default=0.002)
