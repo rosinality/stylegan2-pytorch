@@ -122,6 +122,12 @@ class EqualConv2d(nn.Module):
 
         return out
 
+    def __repr__(self):
+        return (
+            f'{self.__class__.__name__}({self.weight.shape[1]}, {self.weight.shape[0]},'
+            f' {self.weight.shape[2]}, stride={self.stride}, padding={self.padding})'
+        )
+
 
 class EqualLinear(nn.Module):
     def __init__(
@@ -150,6 +156,11 @@ class EqualLinear(nn.Module):
             out = F.linear(input, self.weight * self.scale, bias=self.bias * self.scale)
 
         return out
+
+    def __repr__(self):
+        return (
+            f'{self.__class__.__name__}({self.weight.shape[1]}, {self.weight.shape[0]})'
+        )
 
 
 class ScaledLeakyReLU(nn.Module):
@@ -594,7 +605,7 @@ class Discriminator(nn.Module):
             8: 512,
             16: 512,
             32: 512,
-            64: 256,
+            64: 256 * channel_multiplier,
             128: 128 * channel_multiplier,
             256: 64 * channel_multiplier,
             512: 32 * channel_multiplier,
