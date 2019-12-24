@@ -362,6 +362,9 @@ if __name__ == '__main__':
             output_device=args.local_rank,
             broadcast_buffers=False,
         )
+    else:
+        generator = nn.parallel.DataParallel(generator)
+        discriminator = nn.parallel.DataParallel(discriminator)
 
     g_reg_ratio = args.g_reg_every / (args.g_reg_every + 1)
     d_reg_ratio = args.d_reg_every / (args.d_reg_every + 1)
