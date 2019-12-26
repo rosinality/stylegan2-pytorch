@@ -146,14 +146,15 @@ class EqualLinear(nn.Module):
         self.activation = activation
 
         self.scale = (1 / math.sqrt(in_dim)) * lr_mul
+        self.lr_mul = lr_mul
 
     def forward(self, input):
         if self.activation:
             out = F.linear(input, self.weight * self.scale)
-            out = fused_leaky_relu(out, self.bias * self.scale)
+            out = fused_leaky_relu(out, self.bias * self.lr_mul)
 
         else:
-            out = F.linear(input, self.weight * self.scale, bias=self.bias * self.scale)
+            out = F.linear(input, self.weight * self.scale, bias=self.bias * self.lr_mul)
 
         return out
 
@@ -465,6 +466,7 @@ class Generator(nn.Module):
         self,
         styles,
         return_latents=False,
+        inject_index=None,
         truncation=1,
         truncation_latent=None,
         input_is_latent=False,
@@ -492,7 +494,8 @@ class Generator(nn.Module):
             latent = styles[0].unsqueeze(1).repeat(1, inject_index, 1)
 
         else:
-            inject_index = random.randint(1, self.n_latent - 1)
+            if inject_index is None:
+                inject_index = random.randint(1, self.n_latent - 1)
 
             latent = styles[0].unsqueeze(1).repeat(1, inject_index, 1)
             latent2 = styles[1].unsqueeze(1).repeat(1, self.n_latent - inject_index, 1)
