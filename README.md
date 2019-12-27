@@ -45,3 +45,11 @@ Sample from FFHQ (1024px)
 ![Sample from LSUN Church](stylegan2-church-config-f.png)
 
 Sample from LSUN Church (256px)
+
+## License
+
+Model details and custom CUDA kernel codes are from official repostiories: https://github.com/NVlabs/stylegan2
+
+Codes for Learned Perceptual Image Patch Similarity, LPIPS came from https://github.com/richzhang/PerceptualSimilarity
+
+To match FID scores more closely to tensorflow official implementations, I have used FID Inception V3 implementations in https://github.com/mseitzer/pytorch-fid
