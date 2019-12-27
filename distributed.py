@@ -56,6 +56,9 @@ def reduce_sum(tensor):
 
 def gather_grad(params):
     world_size = get_world_size()
+    
+    if world_size == 1:
+        return
 
     for param in params:
         if param.grad is not None:

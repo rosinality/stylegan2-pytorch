@@ -290,10 +290,18 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
                     )
 
             if i % 10000 == 0:
+                if args.distributed:
+                    g_state = generator.module.state_dict()
+                    d_state = discriminator.module.state_dict()
+                    
+                else:
+                    g_state = generator.state_dict()
+                    d_state = discriminator.state_dict()
+                
                 torch.save(
                     {
-                        'g': generator.module.state_dict(),
-                        'd': discriminator.module.state_dict(),
+                        'g': g_state,
+                        'd': d_state,
                         'g_ema': g_ema.state_dict(),
                         'g_optim': g_optim.state_dict(),
                         'd_optim': d_optim.state_dict(),
