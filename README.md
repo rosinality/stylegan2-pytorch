@@ -28,7 +28,13 @@ For example, if you cloned repositories in ~/stylegan2 and downloaded stylegan2-
 
 > python convert_weight.py --repo ~/stylegan2 stylegan2-ffhq-config-f.pkl
 
-This will create converted stylegan2-ffhq-config-f.pt file.
+This will create converted stylegan2-ffhq-config-f.pt file.  
+
+### Generate samples
+
+> python generate.py --sample N_FACES --pics N_PICS --ckpt PATH_CHECKPOINT  
+
+You should change your size (--size 256 for example) if you train with another dimension.    
 
 ## Samples
 
