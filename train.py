@@ -393,7 +393,7 @@ if __name__ == '__main__':
         ]
     )
 
-    dataset = MultiResolutionDataset(args.path, transform)
+    dataset = MultiResolutionDataset(args.path, transform,args.size)
     loader = data.DataLoader(
         dataset,
         batch_size=args.batch,
