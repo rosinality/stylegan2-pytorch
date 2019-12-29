@@ -130,9 +130,17 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
     mean_path_length_avg = 0
     loss_dict = {}
 
+    if args.distributed:
+        g_module = generator.module
+        d_module = discriminator.module
+
+    else:
+        g_module = generator
+        d_module = discriminator
+
     none_grads = set()
     test_in = torch.randn(1, args.latent, device=device)
-    fake, latent = generator.module([test_in], return_latents=True)
+    fake, latent = g_module([test_in], return_latents=True)
     path = g_path_regularize(fake, latent, 0)
     path[0].backward()
 
@@ -243,7 +251,7 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
         loss_dict['path'] = path_loss
         loss_dict['path_length'] = path_lengths.mean()
 
-        accumulate(g_ema, generator.module)
+        accumulate(g_ema, g_module)
 
         loss_reduced = reduce_loss_dict(loss_dict)
 
@@ -290,18 +298,10 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
                     )
 
             if i % 10000 == 0:
-                if args.distributed:
-                    g_state = generator.module.state_dict()
-                    d_state = discriminator.module.state_dict()
-                    
-                else:
-                    g_state = generator.state_dict()
-                    d_state = discriminator.state_dict()
-                
                 torch.save(
                     {
-                        'g': g_state,
-                        'd': d_state,
+                        'g': g_module.state_dict(),
+                        'd': d_module.state_dict(),
                         'g_ema': g_ema.state_dict(),
                         'g_optim': g_optim.state_dict(),
                         'd_optim': d_optim.state_dict(),
@@ -393,7 +393,7 @@ if __name__ == '__main__':
         ]
     )
 
-    dataset = MultiResolutionDataset(args.path, transform,args.size)
+    dataset = MultiResolutionDataset(args.path, transform, args.size)
     loader = data.DataLoader(
         dataset,
         batch_size=args.batch,
