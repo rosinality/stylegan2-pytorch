@@ -106,6 +106,14 @@ def make_noise(batch, latent_dim, n_noise, device):
     return noises
 
 
+def mixing_noise(batch, latent_dim, prob, device):
+    if prob > 0 and random.random() < prob:
+        return make_noise(batch, latent_dim, 2, device)
+
+    else:
+        return [make_noise(batch, latent_dim, 1, device)]
+
+
 def set_grad_none(model, targets):
     for n, p in model.named_parameters():
         if n in targets:
@@ -138,7 +146,7 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
         g_module = generator
         d_module = discriminator
 
-    none_grads = set()
+    none_g_grads = set()
     test_in = torch.randn(1, args.latent, device=device)
     fake, latent = g_module([test_in], return_latents=True)
     path = g_path_regularize(fake, latent, 0)
@@ -146,7 +154,17 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
 
     for n, p in generator.named_parameters():
         if p.grad is None:
-            none_grads.add(n)
+            none_g_grads.add(n)
+
+    test_in = torch.randn(1, 3, args.size, args.size, requires_grad=True, device=device)
+    pred = d_module(test_in)
+    r1_loss = d_r1_loss(pred, test_in)
+    r1_loss.backward()
+
+    none_d_grads = set()
+    for n, p in discriminator.named_parameters():
+        if p.grad is None:
+            none_d_grads.add(n)
 
     sample_z = torch.randn(8 * 8, args.latent, device=device)
 
@@ -157,23 +175,9 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
         requires_grad(generator, False)
         requires_grad(discriminator, True)
 
-        if args.mixing > 0 and random.random() < args.mixing:
-            noises = make_noise(args.batch, args.latent, 4, device)
-            noise1 = noises[:2]
-            noise2 = noises[2:]
-
-        else:
-            noise1, noise2 = make_noise(args.batch, args.latent, 2, device)
-            noise1 = [noise1]
-            noise2 = [noise2]
-
-        fake_img, _ = generator(noise1)
+        noise = mixing_noise(args.batch, args.latent, args.mixing, device)
+        fake_img, _ = generator(noise)
         fake_pred = discriminator(fake_img)
-
-        d_regularize = i % args.d_reg_every == 0
-
-        if d_regularize:
-            real_img.requires_grad = True
 
         real_pred = discriminator(real_img)
         d_loss = d_logistic_loss(real_pred, fake_pred)
@@ -183,16 +187,22 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
         loss_dict['fake_score'] = fake_pred.mean()
 
         discriminator.zero_grad()
-        d_loss.backward(retain_graph=d_regularize)
-
+        d_loss.backward()
         d_optim.step()
 
+        d_regularize = i % args.d_reg_every == 0
+
         if d_regularize:
+            real_img.requires_grad = True
+            real_pred = discriminator(real_img)
             r1_loss = d_r1_loss(real_pred, real_img)
 
             discriminator.zero_grad()
-            (args.r1 / 2 * r1_loss * args.d_reg_every).backward()
+            (args.r1 / 2 * r1_loss * args.d_reg_every + 0 * real_pred[0]).backward()
+
             gather_grad(discriminator.parameters())
+            set_grad_none(discriminator, none_d_grads)
+
             d_optim.step()
 
         loss_dict['r1'] = r1_loss
@@ -200,32 +210,24 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
         requires_grad(generator, True)
         requires_grad(discriminator, False)
 
-        fake_img, latents = generator(noise2, return_latents=True)
+        noise = mixing_noise(args.batch, args.latent, args.mixing, device)
+        fake_img, _ = generator(noise)
         fake_pred = discriminator(fake_img)
         g_loss = g_nonsaturating_loss(fake_pred)
 
         loss_dict['g'] = g_loss
 
-        g_regularize = i % args.g_reg_every == 0
-
         generator.zero_grad()
-        g_loss.backward(retain_graph=g_regularize and args.path_batch_shrink == 1)
+        g_loss.backward()
         g_optim.step()
 
+        g_regularize = i % args.g_reg_every == 0
+
         if g_regularize:
-            if args.path_batch_shrink > 1:
-                if args.mixing > 0 and random.random() < args.mixing:
-                    noise3 = make_noise(
-                        args.batch // args.path_batch_shrink, args.latent, 2, device
-                    )
-
-                else:
-                    noise3 = make_noise(
-                        args.batch // args.path_batch_shrink, args.latent, 1, device
-                    )
-                    noise3 = [noise3]
-
-                fake_img, latents = generator(noise3, return_latents=True)
+            noise = mixing_noise(
+                args.batch // args.path_batch_shrink, args.latent, args.mixing, device
+            )
+            fake_img, latents = generator(noise, return_latents=True)
 
             path_loss, mean_path_length, path_lengths = g_path_regularize(
                 fake_img, latents, mean_path_length
@@ -240,7 +242,7 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
             weighted_path_loss.backward()
 
             gather_grad(generator.parameters())
-            set_grad_none(generator, none_grads)
+            set_grad_none(g_module, none_g_grads)
 
             g_optim.step()
 
