@@ -25,7 +25,6 @@ from distributed import (
     reduce_loss_dict,
     reduce_sum,
     get_world_size,
-    gather_grad,
 )
 
 
@@ -199,8 +198,6 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
 
             discriminator.zero_grad()
             (args.r1 / 2 * r1_loss * args.d_reg_every + 0 * real_pred[0]).backward()
-
-            gather_grad(discriminator.parameters())
             set_grad_none(discriminator, none_d_grads)
 
             d_optim.step()
@@ -240,8 +237,6 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
                 weighted_path_loss += 0 * fake_img[0, 0, 0, 0]
 
             weighted_path_loss.backward()
-
-            gather_grad(generator.parameters())
             set_grad_none(g_module, none_g_grads)
 
             g_optim.step()
