@@ -6,6 +6,13 @@ Implementation of Analyzing and Improving the Image Quality of StyleGAN (https:/
 
 I have tried to match official implementation as close as possible, but maybe there are some details I missed. So please use this implementation with care.
 
+## Requirements
+
+I have tested on:
+
+* PyTorch 1.3.1
+* CUDA 10.1/10.2
+
 ## Usage
 
 First create lmdb datasets:
