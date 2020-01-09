@@ -2,6 +2,9 @@ import argparse
 import math
 import random
 import os
+import glob
+
+import numpy as np
 
 import torch
 from torch import nn, autograd, optim
@@ -26,6 +29,14 @@ from distributed import (
     reduce_sum,
     get_world_size,
 )
+
+
+np.random.seed(1)
+torch.manual_seed(1)
+
+
+def str2bool(x):
+    return x.lower() in ('true')
 
 
 def data_sampler(dataset, shuffle, distributed):
@@ -125,7 +136,7 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
     pbar = range(args.iter)
 
     if get_rank() == 0:
-        pbar = tqdm(pbar, dynamic_ncols=True, smoothing=0.01)
+        pbar = tqdm(pbar, initial=args.start_iter, dynamic_ncols=True, smoothing=0.01)
 
     mean_path_length = 0
 
@@ -167,7 +178,11 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
 
     sample_z = torch.randn(8 * 8, args.latent, device=device)
 
-    for i in pbar:
+    for idx in pbar:
+        i = idx + args.start_iter
+        if i > args.iter:
+            print('Done!')
+            break
         real_img = next(loader)
         real_img = real_img.to(device)
 
@@ -327,6 +342,7 @@ if __name__ == '__main__':
     parser.add_argument('--channel_multiplier', type=int, default=2)
     parser.add_argument('--wandb', action='store_true')
     parser.add_argument('--local_rank', type=int, default=0)
+    parser.add_argument('--resume', type=str2bool, default=False)
 
     args = parser.parse_args()
 
@@ -341,6 +357,8 @@ if __name__ == '__main__':
     args.latent = 512
     args.n_mlp = 8
 
+    args.start_iter = 0
+
     generator = Generator(
         args.size, args.latent, args.n_mlp, channel_multiplier=args.channel_multiplier
     ).to(device)
@@ -352,6 +370,34 @@ if __name__ == '__main__':
     ).to(device)
     g_ema.eval()
     accumulate(g_ema, generator, 0)
+
+    g_reg_ratio = args.g_reg_every / (args.g_reg_every + 1)
+    d_reg_ratio = args.d_reg_every / (args.d_reg_every + 1)
+
+    g_optim = optim.Adam(
+        generator.parameters(),
+        lr=args.lr * g_reg_ratio,
+        betas=(0 ** g_reg_ratio, 0.99 ** g_reg_ratio),
+    )
+    d_optim = optim.Adam(
+        discriminator.parameters(),
+        lr=args.lr * d_reg_ratio,
+        betas=(0 ** d_reg_ratio, 0.99 ** d_reg_ratio),
+    )
+
+    if args.resume:
+        model_list = glob.glob(os.path.join('./checkpoint', '*.pt'))
+        if not len(model_list) == 0:
+            model_list.sort()
+            args.start_iter = int(model_list[-1].split('/')[-1].split('.')[0])
+            print('Loading model: %s' % model_list[-1])
+            params = torch.load(model_list[-1])
+            generator.load_state_dict(params['g'])
+            discriminator.load_state_dict(params['d'])
+            g_ema.load_state_dict(params['g_ema'])
+
+            g_optim.load_state_dict(params['g_optim'])
+            d_optim.load_state_dict(params['d_optim'])
 
     if args.distributed:
         generator = nn.parallel.DistributedDataParallel(
@@ -368,19 +414,6 @@ if __name__ == '__main__':
             broadcast_buffers=False,
         )
 
-    g_reg_ratio = args.g_reg_every / (args.g_reg_every + 1)
-    d_reg_ratio = args.d_reg_every / (args.d_reg_every + 1)
-
-    g_optim = optim.Adam(
-        generator.parameters(),
-        lr=args.lr * g_reg_ratio,
-        betas=(0 ** g_reg_ratio, 0.99 ** g_reg_ratio),
-    )
-    d_optim = optim.Adam(
-        discriminator.parameters(),
-        lr=args.lr * d_reg_ratio,
-        betas=(0 ** d_reg_ratio, 0.99 ** d_reg_ratio),
-    )
 
     transform = transforms.Compose(
         [
