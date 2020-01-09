@@ -2,10 +2,8 @@ import argparse
 import math
 import random
 import os
-import glob
 
 import numpy as np
-
 import torch
 from torch import nn, autograd, optim
 from torch.nn import functional as F
@@ -29,14 +27,6 @@ from distributed import (
     reduce_sum,
     get_world_size,
 )
-
-
-np.random.seed(1)
-torch.manual_seed(1)
-
-
-def str2bool(x):
-    return x.lower() in ('true')
 
 
 def data_sampler(dataset, shuffle, distributed):
@@ -180,9 +170,12 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
 
     for idx in pbar:
         i = idx + args.start_iter
+
         if i > args.iter:
             print('Done!')
+
             break
+
         real_img = next(loader)
         real_img = real_img.to(device)
 
@@ -342,7 +335,6 @@ if __name__ == '__main__':
     parser.add_argument('--channel_multiplier', type=int, default=2)
     parser.add_argument('--wandb', action='store_true')
     parser.add_argument('--local_rank', type=int, default=0)
-    parser.add_argument('--resume', type=str2bool, default=False)
 
     args = parser.parse_args()
 
@@ -385,19 +377,24 @@ if __name__ == '__main__':
         betas=(0 ** d_reg_ratio, 0.99 ** d_reg_ratio),
     )
 
-    if args.resume:
-        model_list = glob.glob(os.path.join('./checkpoint', '*.pt'))
-        if not len(model_list) == 0:
-            model_list.sort()
-            args.start_iter = int(model_list[-1].split('/')[-1].split('.')[0])
-            print('Loading model: %s' % model_list[-1])
-            params = torch.load(model_list[-1])
-            generator.load_state_dict(params['g'])
-            discriminator.load_state_dict(params['d'])
-            g_ema.load_state_dict(params['g_ema'])
+    if args.ckpt is not None:
+        print('load model:', args.ckpt)
+        
+        ckpt = torch.load(args.ckpt)
 
-            g_optim.load_state_dict(params['g_optim'])
-            d_optim.load_state_dict(params['d_optim'])
+        try:
+            ckpt_name = os.path.basename(args.ckpt)
+            args.start_iter = int(os.path.splitext(ckpt_name)[0])
+            
+        except ValueError:
+            pass
+            
+        generator.load_state_dict(ckpt['g'])
+        discriminator.load_state_dict(ckpt['d'])
+        g_ema.load_state_dict(ckpt['g_ema'])
+
+        g_optim.load_state_dict(ckpt['g_optim'])
+        d_optim.load_state_dict(ckpt['d_optim'])
 
     if args.distributed:
         generator = nn.parallel.DistributedDataParallel(
