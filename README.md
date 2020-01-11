@@ -41,21 +41,25 @@ This will create converted stylegan2-ffhq-config-f.pt file.
 
 > python generate.py --sample N_FACES --pics N_PICS --ckpt PATH_CHECKPOINT  
 
-You should change your size (--size 256 for example) if you train with another dimension.    
+You should change your size (--size 256 for example) if you train with another dimension.   
+
+### Project images to latent spaces
+
+> python projector.py --ckpt [CHECKPOINT] --size [GENERATOR_OUTPUT_SIZE] FILE1 FILE2 ...
 
 ## Samples
 
-![Sample with truncation](sample.png)
+![Sample with truncation](doc/sample.png)
 
 At 110,000 iterations. (trained on 3.52M images)
 
 ### Samples from converted weights
 
-![Sample from FFHQ](stylegan2-ffhq-config-f.png)
+![Sample from FFHQ](doc/stylegan2-ffhq-config-f.png)
 
 Sample from FFHQ (1024px)
 
-![Sample from LSUN Church](stylegan2-church-config-f.png)
+![Sample from LSUN Church](doc/stylegan2-church-config-f.png)
 
 Sample from LSUN Church (256px)
 
