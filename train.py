@@ -229,8 +229,9 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
         g_regularize = i % args.g_reg_every == 0
 
         if g_regularize:
+            path_batch_size = max(1, args.batch // args.path_batch_shrink)
             noise = mixing_noise(
-                args.batch // args.path_batch_shrink, args.latent, args.mixing, device
+                path_batch_size, args.latent, args.mixing, device
             )
             fake_img, latents = generator(noise, return_latents=True)
 
