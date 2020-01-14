@@ -380,22 +380,25 @@ if __name__ == '__main__':
 
     if args.ckpt is not None:
         print('load model:', args.ckpt)
-        
+
         ckpt = torch.load(args.ckpt)
 
         try:
             ckpt_name = os.path.basename(args.ckpt)
             args.start_iter = int(os.path.splitext(ckpt_name)[0])
-            
+
         except ValueError:
             pass
-            
+
         generator.load_state_dict(ckpt['g'])
         discriminator.load_state_dict(ckpt['d'])
         g_ema.load_state_dict(ckpt['g_ema'])
 
         g_optim.load_state_dict(ckpt['g_optim'])
         d_optim.load_state_dict(ckpt['d_optim'])
+
+        del ckpt
+        torch.cuda.empty_cache()
 
     if args.distributed:
         generator = nn.parallel.DistributedDataParallel(
