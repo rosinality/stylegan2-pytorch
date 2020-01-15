@@ -166,10 +166,22 @@ def fill_statedict(state_dict, vars, size):
         update(
             state_dict,
             convert_modconv(
-                vars, f'G_synthesis/{reso}x{reso}/Conv1', f'convs.{conv_i + 1}'
+                vars,
+                f'G_synthesis/{reso}x{reso}/Conv1',
+                f'convs.{conv_i + 1}'
             ),
         )
         conv_i += 2
+
+    for i in range(0, (log_size - 2) * 2 + 1):
+        update(
+            state_dict,
+            {
+                f'noises.noise_{i}': torch.from_numpy(
+                    vars[f'G_synthesis/noise{i}'].value().eval()
+                )
+            },
+        )
 
     return state_dict
 
@@ -187,6 +199,7 @@ if __name__ == '__main__':
 
     sys.path.append(args.repo)
 
+    import dnnlib
     from dnnlib import tflib
 
     tflib.init_tf()
@@ -226,11 +239,18 @@ if __name__ == '__main__':
 
     g = g.to(device)
 
-    x = torch.randn(n_sample, 512).to(device)
+    z = np.random.RandomState(0).randn(n_sample, 512).astype('float32')
 
     with torch.no_grad():
-        img, _ = g([x], truncation=0.5, truncation_latent=latent_avg.to(device))
+        img_pt, _ = g([torch.from_numpy(z).to(device)], truncation=0.5, truncation_latent=latent_avg.to(device))
 
-    utils.save_image(
-        img, name + '.png', nrow=int(n_sample ** 0.5), normalize=True, range=(-1, 1)
-    )
+    Gs_kwargs = dnnlib.EasyDict()
+    Gs_kwargs.randomize_noise = False
+    img_tf = g_ema.run(z, None, **Gs_kwargs)
+    img_tf = torch.from_numpy(img_tf).to(device)
+
+    img_diff = ((img_pt + 1) / 2).clamp(0.0, 1.0) - ((img_tf.to(device) + 1) / 2).clamp(0.0, 1.0)
+
+    img_concat = torch.cat((img_tf, img_pt, img_diff), dim=0)
+    utils.save_image(img_concat, name + '.png', nrow=n_sample, normalize=True, range=(-1, 1))
+
