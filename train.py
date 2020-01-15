@@ -145,28 +145,10 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
     else:
         g_module = generator
         d_module = discriminator
+        
+    accum = 0.5 ** (32 / (10 * 1000))
 
-    none_g_grads = set()
-    test_in = torch.randn(1, args.latent, device=device)
-    fake, latent = g_module([test_in], return_latents=True)
-    path = g_path_regularize(fake, latent, 0)
-    path[0].backward()
-
-    for n, p in generator.named_parameters():
-        if p.grad is None:
-            none_g_grads.add(n)
-
-    test_in = torch.randn(1, 3, args.size, args.size, requires_grad=True, device=device)
-    pred = d_module(test_in)
-    r1_loss = d_r1_loss(pred, test_in)
-    r1_loss.backward()
-
-    none_d_grads = set()
-    for n, p in discriminator.named_parameters():
-        if p.grad is None:
-            none_d_grads.add(n)
-
-    sample_z = torch.randn(8 * 8, args.latent, device=device)
+    sample_z = torch.randn(args.n_sample, args.latent, device=device)
 
     for idx in pbar:
         i = idx + args.start_iter
@@ -206,7 +188,6 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
 
             discriminator.zero_grad()
             (args.r1 / 2 * r1_loss * args.d_reg_every + 0 * real_pred[0]).backward()
-            set_grad_none(discriminator, none_d_grads)
 
             d_optim.step()
 
@@ -246,7 +227,6 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
                 weighted_path_loss += 0 * fake_img[0, 0, 0, 0]
 
             weighted_path_loss.backward()
-            set_grad_none(g_module, none_g_grads)
 
             g_optim.step()
 
@@ -257,7 +237,7 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
         loss_dict['path'] = path_loss
         loss_dict['path_length'] = path_lengths.mean()
 
-        accumulate(g_ema, g_module)
+        accumulate(g_ema, g_module, accum)
 
         loss_reduced = reduce_loss_dict(loss_dict)
 
@@ -298,7 +278,7 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
                     utils.save_image(
                         sample,
                         f'sample/{str(i).zfill(6)}.png',
-                        nrow=8,
+                        nrow=int(args.n_sample ** 0.5),
                         normalize=True,
                         range=(-1, 1),
                     )
@@ -324,6 +304,7 @@ if __name__ == '__main__':
     parser.add_argument('path', type=str)
     parser.add_argument('--iter', type=int, default=800000)
     parser.add_argument('--batch', type=int, default=16)
+    parser.add_argument('--n_sample', type=int, default=64)
     parser.add_argument('--size', type=int, default=256)
     parser.add_argument('--r1', type=float, default=10)
     parser.add_argument('--path_regularize', type=float, default=2)
