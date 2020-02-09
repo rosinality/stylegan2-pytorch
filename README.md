@@ -47,6 +47,12 @@ You should change your size (--size 256 for example) if you train with another d
 
 > python projector.py --ckpt [CHECKPOINT] --size [GENERATOR_OUTPUT_SIZE] FILE1 FILE2 ...
 
+## Pretrained Checkpoints
+
+[Link](https://drive.google.com/open?id=1PQutd-JboOCOZqmd95XWxWrO8gGEvRcO)
+
+I have trained the 256px model on FFHQ 550k iterations. I got FID about 4.5. Maybe data preprocessing, resolution, training loop could made this difference, but currently I don't know the exact reason of FID differences.
+
 ## Samples
 
 ![Sample with truncation](doc/sample.png)
