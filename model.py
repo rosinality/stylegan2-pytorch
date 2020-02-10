@@ -154,7 +154,9 @@ class EqualLinear(nn.Module):
             out = fused_leaky_relu(out, self.bias * self.lr_mul)
 
         else:
-            out = F.linear(input, self.weight * self.scale, bias=self.bias * self.lr_mul)
+            out = F.linear(
+                input, self.weight * self.scale, bias=self.bias * self.lr_mul
+            )
 
         return out
 
@@ -478,7 +480,7 @@ class Generator(nn.Module):
         truncation_latent=None,
         input_is_latent=False,
         noise=None,
-        randomize_noise=False
+        randomize_noise=True,
     ):
         if not input_is_latent:
             styles = [self.style(s) for s in styles]
@@ -487,7 +489,9 @@ class Generator(nn.Module):
             if randomize_noise:
                 noise = [None] * self.num_layers
             else:
-                noise = [getattr(self.noises, f'noise_{i}') for i in range(self.num_layers)]
+                noise = [
+                    getattr(self.noises, f'noise_{i}') for i in range(self.num_layers)
+                ]
 
         if truncation < 1:
             style_t = []
@@ -504,7 +508,7 @@ class Generator(nn.Module):
 
             if styles[0].ndim < 3:
                 latent = styles[0].unsqueeze(1).repeat(1, inject_index, 1)
-                
+
             else:
                 latent = styles[0]
 
