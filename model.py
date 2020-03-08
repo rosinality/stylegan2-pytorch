@@ -516,8 +516,14 @@ class Generator(nn.Module):
             if inject_index is None:
                 inject_index = random.randint(1, self.n_latent - 1)
 
-            latent = styles[0].unsqueeze(1).repeat(1, inject_index, 1)
-            latent2 = styles[1].unsqueeze(1).repeat(1, self.n_latent - inject_index, 1)
+            if styles[0].ndim < 3:
+                latent = styles[0].unsqueeze(1).repeat(1, inject_index, 1)
+            else:
+                latent = styles[0][:,:inject_index, :]
+            if styles[1].ndim < 3:
+                latent2 = styles[1].unsqueeze(1).repeat(1, self.n_latent - inject_index, 1)
+            else:
+                latent2 = styles[1][:,inject_index:,:]
 
             latent = torch.cat([latent, latent2], 1)
 
