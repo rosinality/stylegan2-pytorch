@@ -1,16 +1,17 @@
 import os
 
 import torch
+from torch.nn import functional as F
 from torch.autograd import Function
 from torch.utils.cpp_extension import load
 
 
 module_path = os.path.dirname(__file__)
 upfirdn2d_op = load(
-    'upfirdn2d',
+    "upfirdn2d",
     sources=[
-        os.path.join(module_path, 'upfirdn2d.cpp'),
-        os.path.join(module_path, 'upfirdn2d_kernel.cu'),
+        os.path.join(module_path, "upfirdn2d.cpp"),
+        os.path.join(module_path, "upfirdn2d_kernel.cu"),
     ],
 )
 
@@ -142,9 +143,15 @@ class UpFirDn2d(Function):
 
 
 def upfirdn2d(input, kernel, up=1, down=1, pad=(0, 0)):
-    out = UpFirDn2d.apply(
-        input, kernel, (up, up), (down, down), (pad[0], pad[1], pad[0], pad[1])
-    )
+    if input.device.type == "cpu":
+        out = upfirdn2d_native(
+            input, kernel, up, up, down, down, pad[0], pad[1], pad[0], pad[1]
+        )
+
+    else:
+        out = UpFirDn2d.apply(
+            input, kernel, (up, up), (down, down), (pad[0], pad[1], pad[0], pad[1])
+        )
 
     return out
 
@@ -152,6 +159,9 @@ def upfirdn2d(input, kernel, up=1, down=1, pad=(0, 0)):
 def upfirdn2d_native(
     input, kernel, up_x, up_y, down_x, down_y, pad_x0, pad_x1, pad_y0, pad_y1
 ):
+    _, channel, in_h, in_w = input.shape
+    input = input.reshape(-1, in_h, in_w, 1)
+
     _, in_h, in_w, minor = input.shape
     kernel_h, kernel_w = kernel.shape
 
@@ -182,6 +192,9 @@ def upfirdn2d_native(
         in_w * up_x + pad_x0 + pad_x1 - kernel_w + 1,
     )
     out = out.permute(0, 2, 3, 1)
+    out = out[:, ::down_y, ::down_x, :]
 
-    return out[:, ::down_y, ::down_x, :]
+    out_h = (in_h * up_y + pad_y0 + pad_y1 - kernel_h) // down_y + 1
+    out_w = (in_w * up_x + pad_x0 + pad_x1 - kernel_w) // down_x + 1
 
+    return out.view(-1, channel, out_h, out_w)
