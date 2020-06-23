@@ -1,4 +1,5 @@
 import os
+import numpy as np
 import torch
 from torch.autograd import Variable
 from pdb import set_trace as st
@@ -55,4 +56,3 @@ class BaseModel():
     def save_done(self, flag=False):
         np.save(os.path.join(self.save_dir, 'done_flag'),flag)
         np.savetxt(os.path.join(self.save_dir, 'done_flag'),[flag,],fmt='%i')
-
