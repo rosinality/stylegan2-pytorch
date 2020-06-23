@@ -27,6 +27,7 @@ from distributed import (
     reduce_sum,
     get_world_size,
 )
+from non_leaking import augment
 
 
 def data_sampler(dataset, shuffle, distributed):
@@ -50,7 +51,7 @@ def accumulate(model1, model2, decay=0.999):
     par2 = dict(model2.named_parameters())
 
     for k in par1.keys():
-        par1[k].data.mul_(decay).add_(1 - decay, par2[k].data)
+        par1[k].data.mul_(decay).add_(par2[k].data, alpha=1 - decay)
 
 
 def sample_data(loader):
@@ -70,7 +71,7 @@ def d_r1_loss(real_pred, real_img):
     grad_real, = autograd.grad(
         outputs=real_pred.sum(), inputs=real_img, create_graph=True
     )
-    grad_penalty = grad_real.pow(2).view(grad_real.shape[0], -1).sum(1).mean()
+    grad_penalty = grad_real.pow(2).reshape(grad_real.shape[0], -1).sum(1).mean()
 
     return grad_penalty
 
@@ -147,6 +148,10 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
         d_module = discriminator
 
     accum = 0.5 ** (32 / (10 * 1000))
+    ada_augment = torch.tensor([0.0, 0.0], device=device)
+    ada_aug_p = args.augment_p if args.augment_p > 0 else 0.0
+    ada_aug_step = args.ada_target / args.ada_length
+    r_t_stat = 0
 
     sample_z = torch.randn(args.n_sample, args.latent, device=device)
 
@@ -166,8 +171,12 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
 
         noise = mixing_noise(args.batch, args.latent, args.mixing, device)
         fake_img, _ = generator(noise)
-        fake_pred = discriminator(fake_img)
 
+        if args.augment:
+            real_img, _ = augment(real_img, ada_aug_p)
+            fake_img, _ = augment(fake_img, ada_aug_p)
+
+        fake_pred = discriminator(fake_img)
         real_pred = discriminator(real_img)
         d_loss = d_logistic_loss(real_pred, fake_pred)
 
@@ -178,6 +187,27 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
         discriminator.zero_grad()
         d_loss.backward()
         d_optim.step()
+
+        if args.augment and args.augment_p == 0:
+            ada_augment += torch.tensor(
+                (torch.sign(real_pred).sum().item(), real_pred.shape[0]), device=device
+            )
+            ada_augment = reduce_sum(ada_augment)
+
+            if ada_augment[1] > 255:
+                pred_signs, n_pred = ada_augment.tolist()
+
+                r_t_stat = pred_signs / n_pred
+
+                if r_t_stat > args.ada_target:
+                    sign = 1
+
+                else:
+                    sign = -1
+
+                ada_aug_p += sign * ada_aug_step * n_pred
+                ada_aug_p = min(1, max(0, ada_aug_p))
+                ada_augment.mul_(0)
 
         d_regularize = i % args.d_reg_every == 0
 
@@ -198,6 +228,10 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
 
         noise = mixing_noise(args.batch, args.latent, args.mixing, device)
         fake_img, _ = generator(noise)
+
+        if args.augment:
+            fake_img, _ = augment(fake_img, ada_aug_p)
+
         fake_pred = discriminator(fake_img)
         g_loss = g_nonsaturating_loss(fake_pred)
 
@@ -251,7 +285,8 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
             pbar.set_description(
                 (
                     f"d: {d_loss_val:.4f}; g: {g_loss_val:.4f}; r1: {r1_val:.4f}; "
-                    f"path: {path_loss_val:.4f}; mean path: {mean_path_length_avg:.4f}"
+                    f"path: {path_loss_val:.4f}; mean path: {mean_path_length_avg:.4f}; "
+                    f"augment: {ada_aug_p:.4f}"
                 )
             )
 
@@ -260,6 +295,8 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
                     {
                         "Generator": g_loss_val,
                         "Discriminator": d_loss_val,
+                        "Augment": ada_aug_p,
+                        "Rt": r_t_stat,
                         "R1": r1_val,
                         "Path Length Regularization": path_loss_val,
                         "Mean Path Length": mean_path_length,
@@ -315,6 +352,10 @@ if __name__ == "__main__":
     parser.add_argument("--channel_multiplier", type=int, default=2)
     parser.add_argument("--wandb", action="store_true")
     parser.add_argument("--local_rank", type=int, default=0)
+    parser.add_argument("--augment", action="store_true")
+    parser.add_argument("--augment_p", type=float, default=0)
+    parser.add_argument("--ada_target", type=float, default=0.6)
+    parser.add_argument("--ada_length", type=int, default=500 * 1000)
 
     args = parser.parse_args()
 

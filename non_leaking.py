@@ -288,11 +288,15 @@ def get_padding(G, height, width):
 def try_sample_affine_and_pad(img, p, pad_k, G=None):
     batch, _, height, width = img.shape
 
+    G_try = G
+
     while True:
         if G is None:
-            G = sample_affine(p, batch, height, width)
+            G_try = sample_affine(p, batch, height, width)
 
-        pad_x1, pad_x2, pad_y1, pad_y2 = get_padding(torch.inverse(G), height, width)
+        pad_x1, pad_x2, pad_y1, pad_y2 = get_padding(
+            torch.inverse(G_try), height, width
+        )
 
         try:
             img_pad = F.pad(
@@ -306,7 +310,7 @@ def try_sample_affine_and_pad(img, p, pad_k, G=None):
 
         break
 
-    return img_pad, G, (pad_x1, pad_x2, pad_y1, pad_y2)
+    return img_pad, G_try, (pad_x1, pad_x2, pad_y1, pad_y2)
 
 
 def random_apply_affine(img, p, G=None, antialiasing_kernel=SYM6):
@@ -382,7 +386,7 @@ def random_apply_color(img, p, C=None):
     if C is None:
         C = sample_color(p, img.shape[0])
 
-    img = apply_color(img, C)
+    img = apply_color(img, C.to(img))
 
     return img, C
 
