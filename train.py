@@ -173,11 +173,14 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
         fake_img, _ = generator(noise)
 
         if args.augment:
-            real_img, _ = augment(real_img, ada_aug_p)
+            real_img_aug, _ = augment(real_img, ada_aug_p)
             fake_img, _ = augment(fake_img, ada_aug_p)
 
+        else:
+            real_img_aug = real_img
+
         fake_pred = discriminator(fake_img)
-        real_pred = discriminator(real_img)
+        real_pred = discriminator(real_img_aug)
         d_loss = d_logistic_loss(real_pred, fake_pred)
 
         loss_dict["d"] = d_loss
