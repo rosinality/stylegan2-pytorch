@@ -57,11 +57,11 @@ I have trained the 256px model on FFHQ 550k iterations. I got FID about 4.5. May
 
 ![Sample with truncation](doc/sample.png)
 
-At 110,000 iterations. (trained on 3.52M images)
+Sample from FFHQ. At 110,000 iterations. (trained on 3.52M images)
 
 ![MetFaces sample with non-leaking augmentations](doc/sample-metfaces.png)
 
-At 150,000 iterations. (trained on 4.8M images)
+Sample from MetFaces with Non-leaking augmentations. At 150,000 iterations. (trained on 4.8M images)
 
 
 ### Samples from converted weights
