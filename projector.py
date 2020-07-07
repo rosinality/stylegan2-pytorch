@@ -29,7 +29,7 @@ def noise_regularize(noises):
             if size <= 8:
                 break
 
-            noise = noise.reshape([1, 1, size // 2, 2, size // 2, 2])
+            noise = noise.reshape([-1, 1, size // 2, 2, size // 2, 2])
             noise = noise.mean([3, 5])
             size //= 2
 
@@ -128,7 +128,10 @@ if __name__ == "__main__":
         model="net-lin", net="vgg", use_gpu=device.startswith("cuda")
     )
 
-    noises = g_ema.make_noise()
+    noises_single = g_ema.make_noise()
+    noises = []
+    for noise in noises_single:
+        noises.append(noise.repeat(imgs.shape[0], 1, 1, 1).normal_())
 
     latent_in = latent_mean.detach().clone().unsqueeze(0).repeat(imgs.shape[0], 1)
 
@@ -186,16 +189,24 @@ if __name__ == "__main__":
             )
         )
 
-    result_file = {"noises": noises}
-
     img_gen, _ = g_ema([latent_path[-1]], input_is_latent=True, noise=noises)
 
     filename = os.path.splitext(os.path.basename(args.files[0]))[0] + ".pt"
 
     img_ar = make_image(img_gen)
 
+    result_file = {}
     for i, input_name in enumerate(args.files):
-        result_file[input_name] = {"img": img_gen[i], "latent": latent_in[i]}
+        noise_single = []
+        for noise in noises:
+            noise_single.append(noise[i : i + 1])
+
+        result_file[input_name] = {
+            "img": img_gen[i],
+            "latent": latent_in[i],
+            "noise": noise_single,
+        }
+
         img_name = os.path.splitext(os.path.basename(input_name))[0] + "-project.png"
         pil_img = Image.fromarray(img_ar[i])
         pil_img.save(img_name)
