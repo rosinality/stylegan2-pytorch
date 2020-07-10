@@ -198,7 +198,7 @@ def fill_statedict(state_dict, vars, size):
 
 
 if __name__ == "__main__":
-    device = "cpu"
+    device = "cuda"
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--repo", type=str, required=True)
