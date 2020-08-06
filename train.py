@@ -192,10 +192,10 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
         d_optim.step()
 
         if args.augment and args.augment_p == 0:
-            ada_augment += torch.tensor(
+            ada_augment_data = torch.tensor(
                 (torch.sign(real_pred).sum().item(), real_pred.shape[0]), device=device
             )
-            ada_augment = reduce_sum(ada_augment)
+            ada_augment += reduce_sum(ada_augment_data)
 
             if ada_augment[1] > 255:
                 pred_signs, n_pred = ada_augment.tolist()
