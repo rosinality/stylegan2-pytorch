@@ -39,6 +39,7 @@ if __name__ == '__main__':
     parser.add_argument('--size', type=int, default=256)
     parser.add_argument('--eps', type=float, default=1e-4)
     parser.add_argument('--crop', action='store_true')
+    parser.add_argument('--sampling', default='end', choices=['end', 'full'])
     parser.add_argument('ckpt', metavar='CHECKPOINT')
 
     args = parser.parse_args()
@@ -66,7 +67,10 @@ if __name__ == '__main__':
             noise = g.make_noise()
 
             inputs = torch.randn([batch * 2, latent_dim], device=device)
-            lerp_t = torch.rand(batch, device=device)
+            if args.sampling == 'full':
+                lerp_t = torch.rand(batch, device=device)
+            else:
+                lerp_t = torch.zeros(batch, device=device)
 
             if args.space == 'w':
                 latent = g.get_latent(inputs)
