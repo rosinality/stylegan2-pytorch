@@ -55,6 +55,12 @@ if __name__ == "__main__":
         "--crop", action="store_true", help="apply center crop to the images"
     )
     parser.add_argument(
+        "--sampling",
+        default="end",
+        choices=["end", "full"],
+        help="set endpoint sampling method",
+    )
+    parser.add_argument(
         "ckpt", metavar="CHECKPOINT", help="path to the model checkpoints"
     )
 
@@ -83,7 +89,10 @@ if __name__ == "__main__":
             noise = g.make_noise()
 
             inputs = torch.randn([batch * 2, latent_dim], device=device)
-            lerp_t = torch.rand(batch, device=device)
+            if args.sampling == "full":
+                lerp_t = torch.rand(batch, device=device)
+            else:
+                lerp_t = torch.zeros(batch, device=device)
 
             if args.space == "w":
                 latent = g.get_latent(inputs)
