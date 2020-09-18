@@ -21,6 +21,12 @@ if __name__ == "__main__":
         default=5,
         help="scalar factors for moving latent vectors along eigenvector",
     )
+    parser.add_argument(
+        "--channel_multiplier",
+        type=int,
+        default=2,
+        help='channel multiplier factor. config-f = 2, else = 1',
+    )
     parser.add_argument("--ckpt", type=str, required=True, help="stylegan2 checkpoints")
     parser.add_argument(
         "--size", type=int, default=256, help="output image size of the generator"
@@ -50,7 +56,7 @@ if __name__ == "__main__":
 
     eigvec = torch.load(args.factor)["eigvec"].to(args.device)
     ckpt = torch.load(args.ckpt)
-    g = Generator(args.size, 512, 8).to(args.device)
+    g = Generator(args.size, 512, 8, channel_multiplier=args.channel_multiplier).to(args.device)
     g.load_state_dict(ckpt["g_ema"], strict=False)
 
     trunc = g.mean_latent(4096)
