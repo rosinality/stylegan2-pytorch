@@ -9,17 +9,42 @@ from model import Generator
 if __name__ == "__main__":
     torch.set_grad_enabled(False)
 
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description="Apply closed form factorization")
 
-    parser.add_argument("-i", "--index", type=int, default=0)
-    parser.add_argument("-d", "--degree", type=float, default=5)
-    parser.add_argument("--ckpt", type=str, required=True)
-    parser.add_argument("--size", type=int, default=256)
-    parser.add_argument("-n", "--n_sample", type=int, default=7)
-    parser.add_argument("--truncation", type=float, default=0.7)
-    parser.add_argument("--device", type=str, default="cuda")
-    parser.add_argument("--out_prefix", type=str, default="factor")
-    parser.add_argument("factor", type=str)
+    parser.add_argument(
+        "-i", "--index", type=int, default=0, help="index of eigenvector"
+    )
+    parser.add_argument(
+        "-d",
+        "--degree",
+        type=float,
+        default=5,
+        help="scalar factors for moving latent vectors along eigenvector",
+    )
+    parser.add_argument("--ckpt", type=str, required=True, help="stylegan2 checkpoints")
+    parser.add_argument(
+        "--size", type=int, default=256, help="output image size of the generator"
+    )
+    parser.add_argument(
+        "-n", "--n_sample", type=int, default=7, help="number of samples created"
+    )
+    parser.add_argument(
+        "--truncation", type=float, default=0.7, help="truncation factor"
+    )
+    parser.add_argument(
+        "--device", type=str, default="cuda", help="device to run the model"
+    )
+    parser.add_argument(
+        "--out_prefix",
+        type=str,
+        default="factor",
+        help="filename prefix to result samples",
+    )
+    parser.add_argument(
+        "factor",
+        type=str,
+        help="name of the closed form factorization result factor file",
+    )
 
     args = parser.parse_args()
 

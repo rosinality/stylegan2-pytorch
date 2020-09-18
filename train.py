@@ -339,28 +339,100 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
 if __name__ == "__main__":
     device = "cuda"
 
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description="StyleGAN2 trainer")
 
-    parser.add_argument("path", type=str)
-    parser.add_argument("--iter", type=int, default=800000)
-    parser.add_argument("--batch", type=int, default=16)
-    parser.add_argument("--n_sample", type=int, default=64)
-    parser.add_argument("--size", type=int, default=256)
-    parser.add_argument("--r1", type=float, default=10)
-    parser.add_argument("--path_regularize", type=float, default=2)
-    parser.add_argument("--path_batch_shrink", type=int, default=2)
-    parser.add_argument("--d_reg_every", type=int, default=16)
-    parser.add_argument("--g_reg_every", type=int, default=4)
-    parser.add_argument("--mixing", type=float, default=0.9)
-    parser.add_argument("--ckpt", type=str, default=None)
-    parser.add_argument("--lr", type=float, default=0.002)
-    parser.add_argument("--channel_multiplier", type=int, default=2)
-    parser.add_argument("--wandb", action="store_true")
-    parser.add_argument("--local_rank", type=int, default=0)
-    parser.add_argument("--augment", action="store_true")
-    parser.add_argument("--augment_p", type=float, default=0)
-    parser.add_argument("--ada_target", type=float, default=0.6)
-    parser.add_argument("--ada_length", type=int, default=500 * 1000)
+    parser.add_argument("path", type=str, help="path to the lmdb dataset")
+    parser.add_argument(
+        "--iter", type=int, default=800000, help="total training iterations"
+    )
+    parser.add_argument(
+        "--batch", type=int, default=16, help="batch sizes for each gpus"
+    )
+    parser.add_argument(
+        "--n_sample",
+        type=int,
+        default=64,
+        help="number of the samples generated during training",
+    )
+    parser.add_argument(
+        "--size", type=int, default=256, help="image sizes for the model"
+    )
+    parser.add_argument(
+        "--r1", type=float, default=10, help="weight of the r1 regularization"
+    )
+    parser.add_argument(
+        "--path_regularize",
+        type=float,
+        default=2,
+        help="weight of the path length regularization",
+    )
+    parser.add_argument(
+        "--path_batch_shrink",
+        type=int,
+        default=2,
+        help="batch size reducing factor for the path length regularization (reduce memory consumption)",
+    )
+    parser.add_argument(
+        "--d_reg_every",
+        type=int,
+        default=16,
+        help="interval of the applying r1 regularization",
+    )
+    parser.add_argument(
+        "--g_reg_every",
+        type=int,
+        default=4,
+        help="interval of the applying path length regularization",
+    )
+    parser.add_argument(
+        "--mixing", type=float, default=0.9, help="probability of latent code mixing"
+    )
+    parser.add_argument(
+        "--ckpt",
+        type=str,
+        default=None,
+        help="path to the checkpoints to resume training",
+    )
+    parser.add_argument("--lr", type=float, default=0.002, help="learning rate")
+    parser.add_argument(
+        "--channel_multiplier",
+        type=int,
+        default=2,
+        help="channel multiplier factor for the model. config-f = 2, else = 1",
+    )
+    parser.add_argument(
+        "--wandb", action="store_true", help="use weights and biases logging"
+    )
+    parser.add_argument(
+        "--local_rank", type=int, default=0, help="local rank for distributed training"
+    )
+    parser.add_argument(
+        "--augment", action="store_true", help="apply non leaking augmentation"
+    )
+    parser.add_argument(
+        "--augment_p",
+        type=float,
+        default=0,
+        help="probability of applying augmentation. 0 = use adaptive augmentation",
+    )
+    parser.add_argument(
+        "--ada_target",
+        type=float,
+        default=0.6,
+        help="target augmentation probability for adaptive augmentation",
+    )
+    parser.add_argument(
+        "--ada_length",
+        type=int,
+        default=500 * 1000,
+        help="target duraing to reach augmentation probability for adaptive augmentation",
+    )
+    parser.add_argument(
+        "--ada_every",
+        type=int,
+        default=256,
+        help="probability update interval of the adaptive augmentation",
+    )
 
     args = parser.parse_args()
 

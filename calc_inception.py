@@ -18,7 +18,7 @@ from dataset import MultiResolutionDataset
 class Inception3Feature(Inception3):
     def forward(self, x):
         if x.shape[2] != 299 or x.shape[3] != 299:
-            x = F.interpolate(x, size=(299, 299), mode='bilinear', align_corners=True)
+            x = F.interpolate(x, size=(299, 299), mode="bilinear", align_corners=True)
 
         x = self.Conv2d_1a_3x3(x)  # 299 x 299 x 3
         x = self.Conv2d_2a_3x3(x)  # 149 x 149 x 32
@@ -66,24 +66,38 @@ def extract_features(loader, inception, device):
     for img in pbar:
         img = img.to(device)
         feature = inception(img)[0].view(img.shape[0], -1)
-        feature_list.append(feature.to('cpu'))
+        feature_list.append(feature.to("cpu"))
 
     features = torch.cat(feature_list, 0)
 
     return features
 
 
-if __name__ == '__main__':
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+if __name__ == "__main__":
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     parser = argparse.ArgumentParser(
-        description='Calculate Inception v3 features for datasets'
+        description="Calculate Inception v3 features for datasets"
     )
-    parser.add_argument('--size', type=int, default=256)
-    parser.add_argument('--batch', default=64, type=int, help='batch size')
-    parser.add_argument('--n_sample', type=int, default=50000)
-    parser.add_argument('--flip', action='store_true')
-    parser.add_argument('path', metavar='PATH', help='path to datset lmdb file')
+    parser.add_argument(
+        "--size",
+        type=int,
+        default=256,
+        help="image sizes used for embedding calculation",
+    )
+    parser.add_argument(
+        "--batch", default=64, type=int, help="batch size for inception networks"
+    )
+    parser.add_argument(
+        "--n_sample",
+        type=int,
+        default=50000,
+        help="number of samples used for embedding calculation",
+    )
+    parser.add_argument(
+        "--flip", action="store_true", help="apply random flipping to real images"
+    )
+    parser.add_argument("path", metavar="PATH", help="path to datset lmdb file")
 
     args = parser.parse_args()
 
@@ -105,12 +119,12 @@ if __name__ == '__main__':
 
     features = features[: args.n_sample]
 
-    print(f'extracted {features.shape[0]} features')
+    print(f"extracted {features.shape[0]} features")
 
     mean = np.mean(features, 0)
     cov = np.cov(features, rowvar=False)
 
     name = os.path.splitext(os.path.basename(args.path))[0]
 
-    with open(f'inception_{name}.pkl', 'wb') as f:
-        pickle.dump({'mean': mean, 'cov': cov, 'size': args.size, 'path': args.path}, f)
+    with open(f"inception_{name}.pkl", "wb") as f:
+        pickle.dump({"mean": mean, "cov": cov, "size": args.size, "path": args.path}, f)

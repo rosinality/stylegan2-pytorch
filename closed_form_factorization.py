@@ -4,10 +4,14 @@ import torch
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(
+        description="Extract factor/eigenvectors of latent spaces using closed form factorization"
+    )
 
-    parser.add_argument("--out", type=str, default="factor.pt")
-    parser.add_argument("ckpt", type=str)
+    parser.add_argument(
+        "--out", type=str, default="factor.pt", help="name of the result factor file"
+    )
+    parser.add_argument("ckpt", type=str, help="name of the model checkpoint")
 
     args = parser.parse_args()
 

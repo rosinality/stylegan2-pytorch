@@ -75,19 +75,53 @@ def make_image(tensor):
 if __name__ == "__main__":
     device = "cuda"
 
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--ckpt", type=str, required=True)
-    parser.add_argument("--size", type=int, default=256)
-    parser.add_argument("--lr_rampup", type=float, default=0.05)
-    parser.add_argument("--lr_rampdown", type=float, default=0.25)
-    parser.add_argument("--lr", type=float, default=0.1)
-    parser.add_argument("--noise", type=float, default=0.05)
-    parser.add_argument("--noise_ramp", type=float, default=0.75)
-    parser.add_argument("--step", type=int, default=1000)
-    parser.add_argument("--noise_regularize", type=float, default=1e5)
-    parser.add_argument("--mse", type=float, default=0)
-    parser.add_argument("--w_plus", action="store_true")
-    parser.add_argument("files", metavar="FILES", nargs="+")
+    parser = argparse.ArgumentParser(
+        description="Image projector to the generator latent spaces"
+    )
+    parser.add_argument(
+        "--ckpt", type=str, required=True, help="path to the model checkpoint"
+    )
+    parser.add_argument(
+        "--size", type=int, default=256, help="output image sizes of the generator"
+    )
+    parser.add_argument(
+        "--lr_rampup",
+        type=float,
+        default=0.05,
+        help="duration of the learning rate warmup",
+    )
+    parser.add_argument(
+        "--lr_rampdown",
+        type=float,
+        default=0.25,
+        help="duration of the learning rate decay",
+    )
+    parser.add_argument("--lr", type=float, default=0.1, help="learning rate")
+    parser.add_argument(
+        "--noise", type=float, default=0.05, help="strength of the noise level"
+    )
+    parser.add_argument(
+        "--noise_ramp",
+        type=float,
+        default=0.75,
+        help="duration of the noise level decay",
+    )
+    parser.add_argument("--step", type=int, default=1000, help="optimize iterations")
+    parser.add_argument(
+        "--noise_regularize",
+        type=float,
+        default=1e5,
+        help="weight of the noise regularization",
+    )
+    parser.add_argument("--mse", type=float, default=0, help="weight of the mse loss")
+    parser.add_argument(
+        "--w_plus",
+        action="store_true",
+        help="allow to use distinct latent codes to each layers",
+    )
+    parser.add_argument(
+        "files", metavar="FILES", nargs="+", help="path to image files to be projected"
+    )
 
     args = parser.parse_args()
 
