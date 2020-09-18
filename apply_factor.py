@@ -87,7 +87,7 @@ if __name__ == "__main__":
 
     grid = utils.save_image(
         torch.cat([img1, img, img2], 0),
-        f"{args.out_prefix}_index-{args.index}_degree-{args.degree}.png",
+        f"{args.out_prefix}_index-{args.index:02d}_degree-{args.degree}.png",
         normalize=True,
         range=(-1, 1),
         nrow=args.n_sample,
