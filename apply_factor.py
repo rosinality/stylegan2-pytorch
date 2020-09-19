@@ -51,6 +51,12 @@ if __name__ == "__main__":
         type=str,
         help="name of the closed form factorization result factor file",
     )
+    parser.add_argument(
+        "--torch_seed",
+        type=int,
+        default=0,
+        help="seed for generating random numbers",
+    )
 
     args = parser.parse_args()
 
@@ -61,6 +67,7 @@ if __name__ == "__main__":
 
     trunc = g.mean_latent(4096)
 
+    torch.manual_seed(torch_seed)
     latent = torch.randn(args.n_sample, 512, device=args.device)
     latent = g.get_latent(latent)
 
