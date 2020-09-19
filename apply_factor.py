@@ -67,8 +67,8 @@ if __name__ == "__main__":
 
     trunc = g.mean_latent(4096)
 
-    if torch_seed > 0:
-        torch.manual_seed(torch_seed)
+    if args.torch_seed > 0:
+        torch.manual_seed(args.torch_seed)
     latent = torch.randn(args.n_sample, 512, device=args.device)
     latent = g.get_latent(latent)
 
