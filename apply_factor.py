@@ -73,7 +73,7 @@ if __name__ == "__main__":
 
     direction = eigvec[:, args.index].unsqueeze(0)
 
-    img_list = []
+    img_dict = dict()
 
     for u in torch.linspace(- args.degree, args.degree, args.d_num):
 
@@ -84,12 +84,24 @@ if __name__ == "__main__":
             input_is_latent=True,
         )
 
-        img_list.append(img_batch)
+        for j in range(img_batch.shape[0]):
+
+            img = img_batch[j].unsqueeze(0)
+
+            try:
+                img_dict[j].append(img)
+            except KeyError:
+                img_dict[j] = [img]
+
+    img_list = [
+        torch.cat(img_dict[j], 0)
+        for j in range(args.n_sample)
+    ]
 
     grid = utils.save_image(
         torch.cat(img_list, 0),
         f"{args.out_prefix}_index-{args.index}_degree-{args.degree}.png",
         normalize=True,
         range=(-1, 1),
-        nrow=args.n_sample,
+        nrow=args.d_num,
     )
