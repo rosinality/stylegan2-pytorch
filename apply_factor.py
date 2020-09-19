@@ -75,7 +75,7 @@ if __name__ == "__main__":
 
     img_dict = dict()
 
-    for u in torch.linspace(- args.degree, args.degree, args.d_num):
+    for u in torch.linspace(- args.degree, args.degree, args.degree_num):
 
         img_batch, _ = g(
             [latent + u * direction],
@@ -103,5 +103,5 @@ if __name__ == "__main__":
         f"{args.out_prefix}_index-{args.index}_degree-{args.degree}.png",
         normalize=True,
         range=(-1, 1),
-        nrow=args.d_num,
+        nrow=args.degree_num,
     )
