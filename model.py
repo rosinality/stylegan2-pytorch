@@ -36,7 +36,7 @@ class Upsample(nn.Module):
 
         self.factor = factor
         kernel = make_kernel(kernel) * (factor ** 2)
-        self.register_buffer('kernel', kernel)
+        self.register_buffer("kernel", kernel)
 
         p = kernel.shape[0] - factor
 
@@ -57,7 +57,7 @@ class Downsample(nn.Module):
 
         self.factor = factor
         kernel = make_kernel(kernel)
-        self.register_buffer('kernel', kernel)
+        self.register_buffer("kernel", kernel)
 
         p = kernel.shape[0] - factor
 
@@ -81,7 +81,7 @@ class Blur(nn.Module):
         if upsample_factor > 1:
             kernel = kernel * (upsample_factor ** 2)
 
-        self.register_buffer('kernel', kernel)
+        self.register_buffer("kernel", kernel)
 
         self.pad = pad
 
@@ -124,8 +124,8 @@ class EqualConv2d(nn.Module):
 
     def __repr__(self):
         return (
-            f'{self.__class__.__name__}({self.weight.shape[1]}, {self.weight.shape[0]},'
-            f' {self.weight.shape[2]}, stride={self.stride}, padding={self.padding})'
+            f"{self.__class__.__name__}({self.weight.shape[1]}, {self.weight.shape[0]},"
+            f" {self.weight.shape[2]}, stride={self.stride}, padding={self.padding})"
         )
 
 
@@ -162,20 +162,8 @@ class EqualLinear(nn.Module):
 
     def __repr__(self):
         return (
-            f'{self.__class__.__name__}({self.weight.shape[1]}, {self.weight.shape[0]})'
+            f"{self.__class__.__name__}({self.weight.shape[1]}, {self.weight.shape[0]})"
         )
-
-
-class ScaledLeakyReLU(nn.Module):
-    def __init__(self, negative_slope=0.2):
-        super().__init__()
-
-        self.negative_slope = negative_slope
-
-    def forward(self, input):
-        out = F.leaky_relu(input, negative_slope=self.negative_slope)
-
-        return out * math.sqrt(2)
 
 
 class ModulatedConv2d(nn.Module):
@@ -229,8 +217,8 @@ class ModulatedConv2d(nn.Module):
 
     def __repr__(self):
         return (
-            f'{self.__class__.__name__}({self.in_channel}, {self.out_channel}, {self.kernel_size}, '
-            f'upsample={self.upsample}, downsample={self.downsample})'
+            f"{self.__class__.__name__}({self.in_channel}, {self.out_channel}, {self.kernel_size}, "
+            f"upsample={self.upsample}, downsample={self.downsample})"
         )
 
     def forward(self, input, style):
@@ -384,7 +372,7 @@ class Generator(nn.Module):
         for i in range(n_mlp):
             layers.append(
                 EqualLinear(
-                    style_dim, style_dim, lr_mul=lr_mlp, activation='fused_lrelu'
+                    style_dim, style_dim, lr_mul=lr_mlp, activation="fused_lrelu"
                 )
             )
 
@@ -421,7 +409,7 @@ class Generator(nn.Module):
         for layer_idx in range(self.num_layers):
             res = (layer_idx + 5) // 2
             shape = [1, 1, 2 ** res, 2 ** res]
-            self.noises.register_buffer(f'noise_{layer_idx}', torch.randn(*shape))
+            self.noises.register_buffer(f"noise_{layer_idx}", torch.randn(*shape))
 
         for i in range(3, self.log_size + 1):
             out_channel = self.channels[2 ** i]
@@ -490,7 +478,7 @@ class Generator(nn.Module):
                 noise = [None] * self.num_layers
             else:
                 noise = [
-                    getattr(self.noises, f'noise_{i}') for i in range(self.num_layers)
+                    getattr(self.noises, f"noise_{i}") for i in range(self.num_layers)
                 ]
 
         if truncation < 1:
@@ -585,11 +573,7 @@ class ConvLayer(nn.Sequential):
         )
 
         if activate:
-            if bias:
-                layers.append(FusedLeakyReLU(out_channel))
-
-            else:
-                layers.append(ScaledLeakyReLU(0.2))
+            layers.append(FusedLeakyReLU(out_channel, bias=bias))
 
         super().__init__(*layers)
 
@@ -651,7 +635,7 @@ class Discriminator(nn.Module):
 
         self.final_conv = ConvLayer(in_channel + 1, channels[4], 3)
         self.final_linear = nn.Sequential(
-            EqualLinear(channels[4] * 4 * 4, channels[4], activation='fused_lrelu'),
+            EqualLinear(channels[4] * 4 * 4, channels[4], activation="fused_lrelu"),
             EqualLinear(channels[4], 1),
         )
 

@@ -200,12 +200,28 @@ def fill_statedict(state_dict, vars, size):
 if __name__ == "__main__":
     device = "cuda"
 
-    parser = argparse.ArgumentParser(description='Tensorflow to pytorch model checkpoint converter')
-    parser.add_argument("--repo", type=str, required=True, help='path to the offical StyleGAN2 repository with dnnlib/ folder')
-    parser.add_argument("--gen", action="store_true", help='convert the generator weights')
-    parser.add_argument("--disc", action="store_true", help='convert the discriminator weights')
-    parser.add_argument("--channel_multiplier", type=int, default=2, help='channel multiplier factor. config-f = 2, else = 1')
-    parser.add_argument("path", metavar="PATH", help='path to the tensorflow weights')
+    parser = argparse.ArgumentParser(
+        description="Tensorflow to pytorch model checkpoint converter"
+    )
+    parser.add_argument(
+        "--repo",
+        type=str,
+        required=True,
+        help="path to the offical StyleGAN2 repository with dnnlib/ folder",
+    )
+    parser.add_argument(
+        "--gen", action="store_true", help="convert the generator weights"
+    )
+    parser.add_argument(
+        "--disc", action="store_true", help="convert the discriminator weights"
+    )
+    parser.add_argument(
+        "--channel_multiplier",
+        type=int,
+        default=2,
+        help="channel multiplier factor. config-f = 2, else = 1",
+    )
+    parser.add_argument("path", metavar="PATH", help="path to the tensorflow weights")
 
     args = parser.parse_args()
 
