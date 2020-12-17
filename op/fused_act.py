@@ -39,7 +39,7 @@ class FusedLeakyReLUFunctionBackward(Function):
             grad_bias = grad_input.sum(dim).detach()
 
         else:
-            grad_bias = None
+            grad_bias = empty
 
         return grad_input, grad_bias
 
@@ -58,10 +58,10 @@ class FusedLeakyReLUFunction(Function):
     def forward(ctx, input, bias, negative_slope, scale):
         empty = input.new_empty(0)
 
+        ctx.bias = bias is not None
+
         if bias is None:
             bias = empty
-
-        ctx.bias = bias is not None
 
         out = fused.fused_bias_act(input, bias, empty, 3, 0, negative_slope, scale)
         ctx.save_for_backward(out)
@@ -77,6 +77,9 @@ class FusedLeakyReLUFunction(Function):
         grad_input, grad_bias = FusedLeakyReLUFunctionBackward.apply(
             grad_output, out, ctx.bias, ctx.negative_slope, ctx.scale
         )
+
+        if not ctx.bias:
+            grad_bias = None
 
         return grad_input, grad_bias, None, None
 

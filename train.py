@@ -27,7 +27,7 @@ from distributed import (
     reduce_sum,
     get_world_size,
 )
-from non_leaking import augment
+from non_leaking import augment, AdaptiveAugment
 
 
 def data_sampler(dataset, shuffle, distributed):
@@ -148,10 +148,11 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
         d_module = discriminator
 
     accum = 0.5 ** (32 / (10 * 1000))
-    ada_augment = torch.tensor([0.0, 0.0], device=device)
     ada_aug_p = args.augment_p if args.augment_p > 0 else 0.0
-    ada_aug_step = args.ada_target / args.ada_length
     r_t_stat = 0
+
+    if args.augment and args.augment_p == 0:
+        ada_augment = AdaptiveAugment(args.ada_target, args.ada_length, 256, device)
 
     sample_z = torch.randn(args.n_sample, args.latent, device=device)
 
@@ -192,25 +193,8 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
         d_optim.step()
 
         if args.augment and args.augment_p == 0:
-            ada_augment_data = torch.tensor(
-                (torch.sign(real_pred).sum().item(), real_pred.shape[0]), device=device
-            )
-            ada_augment += reduce_sum(ada_augment_data)
-
-            if ada_augment[1] > 255:
-                pred_signs, n_pred = ada_augment.tolist()
-
-                r_t_stat = pred_signs / n_pred
-
-                if r_t_stat > args.ada_target:
-                    sign = 1
-
-                else:
-                    sign = -1
-
-                ada_aug_p += sign * ada_aug_step * n_pred
-                ada_aug_p = min(1, max(0, ada_aug_p))
-                ada_augment.mul_(0)
+            ada_aug_p = ada_augment.tune(real_pred)
+            r_t_stat = ada_augment.r_t_stat
 
         d_regularize = i % args.d_reg_every == 0
 
