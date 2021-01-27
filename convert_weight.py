@@ -256,7 +256,7 @@ if __name__ == "__main__":
     if args.gen:
         g_train = Generator(size, 512, n_mlp, channel_multiplier=args.channel_multiplier)
         g_train_state = g_train.state_dict()
-        g_train_state = fill_statedict(g_train_state, generator.vars, size)
+        g_train_state = fill_statedict(g_train_state, generator.vars, size, n_mlp)
         ckpt["g"] = g_train_state
 
     if args.disc:
