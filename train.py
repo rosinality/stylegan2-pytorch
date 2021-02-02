@@ -152,7 +152,7 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
     r_t_stat = 0
 
     if args.augment and args.augment_p == 0:
-        ada_augment = AdaptiveAugment(args.ada_target, args.ada_length, 256, device)
+        ada_augment = AdaptiveAugment(args.ada_target, args.ada_length, 8, device)
 
     sample_z = torch.randn(args.n_sample, args.latent, device=device)
 
@@ -200,7 +200,14 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
 
         if d_regularize:
             real_img.requires_grad = True
-            real_pred = discriminator(real_img)
+
+            if args.augment:
+                real_img_aug, _ = augment(real_img, ada_aug_p)
+
+            else:
+                real_img_aug = real_img
+
+            real_pred = discriminator(real_img_aug)
             r1_loss = d_r1_loss(real_pred, real_img)
 
             discriminator.zero_grad()

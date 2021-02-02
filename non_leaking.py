@@ -1,7 +1,9 @@
 import math
 
 import torch
+from torch import autograd
 from torch.nn import functional as F
+import numpy as np
 
 from distributed import reduce_sum
 from op import upfirdn2d
@@ -13,19 +15,21 @@ class AdaptiveAugment:
         self.ada_aug_len = ada_aug_len
         self.update_every = update_every
 
+        self.ada_update = 0
         self.ada_aug_buf = torch.tensor([0.0, 0.0], device=device)
         self.r_t_stat = 0
         self.ada_aug_p = 0
 
     @torch.no_grad()
     def tune(self, real_pred):
-        ada_aug_data = torch.tensor(
+        self.ada_aug_buf += torch.tensor(
             (torch.sign(real_pred).sum().item(), real_pred.shape[0]),
             device=real_pred.device,
         )
-        self.ada_aug_buf += reduce_sum(ada_aug_data)
+        self.ada_update += 1
 
-        if self.ada_aug_buf[1] > self.update_every - 1:
+        if self.ada_update % self.update_every == 0:
+            self.ada_aug_buf = reduce_sum(self.ada_aug_buf)
             pred_signs, n_pred = self.ada_aug_buf.tolist()
 
             self.r_t_stat = pred_signs / n_pred
@@ -39,6 +43,7 @@ class AdaptiveAugment:
             self.ada_aug_p += sign * n_pred / self.ada_aug_len
             self.ada_aug_p = min(1, max(0, self.ada_aug_p))
             self.ada_aug_buf.mul_(0)
+            self.ada_update = 0
 
         return self.ada_aug_p
 
@@ -59,20 +64,20 @@ SYM6 = (
 )
 
 
-def translate_mat(t_x, t_y):
+def translate_mat(t_x, t_y, device="cpu"):
     batch = t_x.shape[0]
 
-    mat = torch.eye(3).unsqueeze(0).repeat(batch, 1, 1)
+    mat = torch.eye(3, device=device).unsqueeze(0).repeat(batch, 1, 1)
     translate = torch.stack((t_x, t_y), 1)
     mat[:, :2, 2] = translate
 
     return mat
 
 
-def rotate_mat(theta):
+def rotate_mat(theta, device="cpu"):
     batch = theta.shape[0]
 
-    mat = torch.eye(3).unsqueeze(0).repeat(batch, 1, 1)
+    mat = torch.eye(3, device=device).unsqueeze(0).repeat(batch, 1, 1)
     sin_t = torch.sin(theta)
     cos_t = torch.cos(theta)
     rot = torch.stack((cos_t, -sin_t, sin_t, cos_t), 1).view(batch, 2, 2)
@@ -81,10 +86,10 @@ def rotate_mat(theta):
     return mat
 
 
-def scale_mat(s_x, s_y):
+def scale_mat(s_x, s_y, device="cpu"):
     batch = s_x.shape[0]
 
-    mat = torch.eye(3).unsqueeze(0).repeat(batch, 1, 1)
+    mat = torch.eye(3, device=device).unsqueeze(0).repeat(batch, 1, 1)
     mat[:, 0, 0] = s_x
     mat[:, 1, 1] = s_y
 
@@ -154,91 +159,91 @@ def saturation_mat(axis, i):
     return saturate
 
 
-def lognormal_sample(size, mean=0, std=1):
-    return torch.empty(size).log_normal_(mean=mean, std=std)
+def lognormal_sample(size, mean=0, std=1, device="cpu"):
+    return torch.empty(size, device=device).log_normal_(mean=mean, std=std)
 
 
-def category_sample(size, categories):
-    category = torch.tensor(categories)
-    sample = torch.randint(high=len(categories), size=(size,))
+def category_sample(size, categories, device="cpu"):
+    category = torch.tensor(categories, device=device)
+    sample = torch.randint(high=len(categories), size=(size,), device=device)
 
     return category[sample]
 
 
-def uniform_sample(size, low, high):
-    return torch.empty(size).uniform_(low, high)
+def uniform_sample(size, low, high, device="cpu"):
+    return torch.empty(size, device=device).uniform_(low, high)
 
 
-def normal_sample(size, mean=0, std=1):
-    return torch.empty(size).normal_(mean, std)
+def normal_sample(size, mean=0, std=1, device="cpu"):
+    return torch.empty(size, device=device).normal_(mean, std)
 
 
-def bernoulli_sample(size, p):
-    return torch.empty(size).bernoulli_(p)
+def bernoulli_sample(size, p, device="cpu"):
+    return torch.empty(size, device=device).bernoulli_(p)
 
 
-def random_mat_apply(p, transform, prev, eye):
+def random_mat_apply(p, transform, prev, eye, device="cpu"):
     size = transform.shape[0]
-    select = bernoulli_sample(size, p).view(size, 1, 1)
+    select = bernoulli_sample(size, p, device=device).view(size, 1, 1)
     select_transform = select * transform + (1 - select) * eye
 
     return select_transform @ prev
 
 
-def sample_affine(p, size, height, width):
-    G = torch.eye(3).unsqueeze(0).repeat(size, 1, 1)
+def sample_affine(p, size, height, width, device="cpu"):
+    G = torch.eye(3, device=device).unsqueeze(0).repeat(size, 1, 1)
     eye = G
 
     # flip
     param = category_sample(size, (0, 1))
-    Gc = scale_mat(1 - 2.0 * param, torch.ones(size))
-    G = random_mat_apply(p, Gc, G, eye)
+    Gc = scale_mat(1 - 2.0 * param, torch.ones(size), device=device)
+    G = random_mat_apply(p, Gc, G, eye, device=device)
     # print('flip', G, scale_mat(1 - 2.0 * param, torch.ones(size)), sep='\n')
 
     # 90 rotate
     param = category_sample(size, (0, 3))
-    Gc = rotate_mat(-math.pi / 2 * param)
-    G = random_mat_apply(p, Gc, G, eye)
+    Gc = rotate_mat(-math.pi / 2 * param, device=device)
+    G = random_mat_apply(p, Gc, G, eye, device=device)
     # print('90 rotate', G, rotate_mat(-math.pi / 2 * param), sep='\n')
 
     # integer translate
     param = uniform_sample(size, -0.125, 0.125)
     param_height = torch.round(param * height) / height
     param_width = torch.round(param * width) / width
-    Gc = translate_mat(param_width, param_height)
-    G = random_mat_apply(p, Gc, G, eye)
+    Gc = translate_mat(param_width, param_height, device=device)
+    G = random_mat_apply(p, Gc, G, eye, device=device)
     # print('integer translate', G, translate_mat(param_width, param_height), sep='\n')
 
     # isotropic scale
     param = lognormal_sample(size, std=0.2 * math.log(2))
-    Gc = scale_mat(param, param)
-    G = random_mat_apply(p, Gc, G, eye)
+    Gc = scale_mat(param, param, device=device)
+    G = random_mat_apply(p, Gc, G, eye, device=device)
     # print('isotropic scale', G, scale_mat(param, param), sep='\n')
 
     p_rot = 1 - math.sqrt(1 - p)
 
     # pre-rotate
     param = uniform_sample(size, -math.pi, math.pi)
-    Gc = rotate_mat(-param)
-    G = random_mat_apply(p_rot, Gc, G, eye)
+    Gc = rotate_mat(-param, device=device)
+    G = random_mat_apply(p_rot, Gc, G, eye, device=device)
     # print('pre-rotate', G, rotate_mat(-param), sep='\n')
 
     # anisotropic scale
     param = lognormal_sample(size, std=0.2 * math.log(2))
-    Gc = scale_mat(param, 1 / param)
-    G = random_mat_apply(p, Gc, G, eye)
+    Gc = scale_mat(param, 1 / param, device=device)
+    G = random_mat_apply(p, Gc, G, eye, device=device)
     # print('anisotropic scale', G, scale_mat(param, 1 / param), sep='\n')
 
     # post-rotate
     param = uniform_sample(size, -math.pi, math.pi)
-    Gc = rotate_mat(-param)
-    G = random_mat_apply(p_rot, Gc, G, eye)
+    Gc = rotate_mat(-param, device=device)
+    G = random_mat_apply(p_rot, Gc, G, eye, device=device)
     # print('post-rotate', G, rotate_mat(-param), sep='\n')
 
     # fractional translate
     param = normal_sample(size, std=0.125)
-    Gc = translate_mat(param, param)
-    G = random_mat_apply(p, Gc, G, eye)
+    Gc = translate_mat(param, param, device=device)
+    G = random_mat_apply(p, Gc, G, eye, device=device)
     # print('fractional translate', G, translate_mat(param, param), sep='\n')
 
     return G
@@ -293,119 +298,144 @@ def affine_grid(grid, mat):
     return (grid.view(n, h * w, 3) @ mat.transpose(1, 2)).view(n, h, w, 2)
 
 
-def get_padding(G, height, width):
-    extreme = (
-        G[:, :2, :]
-        @ torch.tensor([(-1.0, -1, 1), (-1, 1, 1), (1, -1, 1), (1, 1, 1)]).t()
+def get_padding(G, height, width, kernel_size):
+    device = G.device
+
+    cx = (width - 1) / 2
+    cy = (height - 1) / 2
+    cp = torch.tensor(
+        [(-cx, -cy, 1), (cx, -cy, 1), (cx, cy, 1), (-cx, cy, 1)], device=device
     )
+    cp = G @ cp.T
 
-    size = torch.tensor((width, height))
+    pad_k = kernel_size // 4
 
-    pad_low = (
-        ((extreme.min(-1).values + 1) * size)
-        .clamp(max=0)
-        .abs()
-        .ceil()
-        .max(0)
-        .values.to(torch.int64)
-        .tolist()
-    )
-    pad_high = (
-        (extreme.max(-1).values * size - size)
-        .clamp(min=0)
-        .ceil()
-        .max(0)
-        .values.to(torch.int64)
-        .tolist()
-    )
+    pad = cp[:, :2, :].permute(1, 0, 2).flatten(1)
+    pad = torch.cat((-pad, pad)).max(1).values
+    pad = pad + torch.tensor([pad_k * 2 - cx, pad_k * 2 - cy] * 2, device=device)
+    pad = pad.max(torch.tensor([0, 0] * 2, device=device))
+    pad = pad.min(torch.tensor([width - 1, height - 1] * 2, device=device))
 
-    return pad_low[0], pad_high[0], pad_low[1], pad_high[1]
+    pad_x1, pad_y1, pad_x2, pad_y2 = pad.ceil().to(torch.int32)
+
+    return pad_x1, pad_x2, pad_y1, pad_y2
 
 
-def try_sample_affine_and_pad(img, p, pad_k, G=None):
+def try_sample_affine_and_pad(img, p, kernel_size, G=None):
     batch, _, height, width = img.shape
 
     G_try = G
 
-    while True:
-        if G is None:
-            G_try = sample_affine(p, batch, height, width)
+    if G is None:
+        G_try = torch.inverse(sample_affine(p, batch, height, width))
 
-        pad_x1, pad_x2, pad_y1, pad_y2 = get_padding(
-            torch.inverse(G_try), height, width
-        )
+    pad_x1, pad_x2, pad_y1, pad_y2 = get_padding(G_try, height, width, kernel_size)
 
-        try:
-            img_pad = F.pad(
-                img,
-                (pad_x1 + pad_k, pad_x2 + pad_k, pad_y1 + pad_k, pad_y2 + pad_k),
-                mode="reflect",
-            )
-
-        except RuntimeError:
-            continue
-
-        break
+    img_pad = F.pad(img, (pad_x1, pad_x2, pad_y1, pad_y2), mode="reflect")
 
     return img_pad, G_try, (pad_x1, pad_x2, pad_y1, pad_y2)
+
+
+class GridSampleForward(autograd.Function):
+    @staticmethod
+    def forward(ctx, input, grid):
+        out = F.grid_sample(
+            input, grid, mode="bilinear", padding_mode="zeros", align_corners=False
+        )
+        ctx.save_for_backward(input, grid)
+
+        return out
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        input, grid = ctx.saved_tensors
+        grad_input, grad_grid = GridSampleBackward.apply(grad_output, input, grid)
+
+        return grad_input, grad_grid
+
+
+class GridSampleBackward(autograd.Function):
+    @staticmethod
+    def forward(ctx, grad_output, input, grid):
+        op = torch._C._jit_get_operation("aten::grid_sampler_2d_backward")
+        grad_input, grad_grid = op(grad_output, input, grid, 0, 0, False)
+        ctx.save_for_backward(grid)
+
+        return grad_input, grad_grid
+
+    @staticmethod
+    def backward(ctx, grad_grad_input, grad_grad_grid):
+        grid, = ctx.saved_tensors
+        grad_grad_output = None
+
+        if ctx.needs_input_grad[0]:
+            grad_grad_output = GridSampleForward.apply(grad_grad_input, grid)
+
+        return grad_grad_output, None, None
+
+
+grid_sample = GridSampleForward.apply
+
+
+def scale_mat_single(s_x, s_y):
+    return torch.tensor(((s_x, 0, 0), (0, s_y, 0), (0, 0, 1)), dtype=torch.float32)
+
+
+def translate_mat_single(t_x, t_y):
+    return torch.tensor(((1, 0, t_x), (0, 1, t_y), (0, 0, 1)), dtype=torch.float32)
 
 
 def random_apply_affine(img, p, G=None, antialiasing_kernel=SYM6):
     kernel = antialiasing_kernel
     len_k = len(kernel)
-    pad_k = (len_k + 1) // 2
 
-    kernel = torch.as_tensor(kernel)
-    kernel = torch.ger(kernel, kernel).to(img)
-    kernel_flip = torch.flip(kernel, (0, 1))
+    kernel = torch.as_tensor(kernel).to(img)
+    # kernel = torch.ger(kernel, kernel).to(img)
+    kernel_flip = torch.flip(kernel, (0,))
 
     img_pad, G, (pad_x1, pad_x2, pad_y1, pad_y2) = try_sample_affine_and_pad(
-        img, p, pad_k, G
+        img, p, len_k, G
     )
 
-    p_ux1 = pad_x1
-    p_ux2 = pad_x2 + 1
-    p_uy1 = pad_y1
-    p_uy2 = pad_y2 + 1
-    w_p = img_pad.shape[3] - len_k + 1
-    h_p = img_pad.shape[2] - len_k + 1
-    h_o = img.shape[2]
-    w_o = img.shape[3]
-
-    img_2x = upfirdn2d(img_pad, kernel_flip, up=2)
-
-    grid = make_grid(
-        img_2x.shape,
-        -2 * p_ux1 / w_o - 1,
-        2 * (w_p - p_ux1) / w_o - 1,
-        -2 * p_uy1 / h_o - 1,
-        2 * (h_p - p_uy1) / h_o - 1,
-        device=img_2x.device,
-    ).to(img_2x)
-    grid = affine_grid(grid, torch.inverse(G)[:, :2, :].to(img_2x))
-    grid = grid * torch.tensor(
-        [w_o / w_p, h_o / h_p], device=grid.device
-    ) + torch.tensor(
-        [(w_o + 2 * p_ux1) / w_p - 1, (h_o + 2 * p_uy1) / h_p - 1], device=grid.device
+    G_inv = (
+        translate_mat_single((pad_x1 - pad_x2).item() / 2, (pad_y1 - pad_y2).item() / 2)
+        @ G
+    )
+    up_pad = (
+        (len_k + 2 - 1) // 2,
+        (len_k - 2) // 2,
+        (len_k + 2 - 1) // 2,
+        (len_k - 2) // 2,
+    )
+    img_2x = upfirdn2d(img_pad, kernel.unsqueeze(0), up=(2, 1), pad=(*up_pad[:2], 0, 0))
+    img_2x = upfirdn2d(img_2x, kernel.unsqueeze(1), up=(1, 2), pad=(0, 0, *up_pad[2:]))
+    G_inv = scale_mat_single(2, 2) @ G_inv @ scale_mat_single(1 / 2, 1 / 2)
+    G_inv = translate_mat_single(-0.5, -0.5) @ G_inv @ translate_mat_single(0.5, 0.5)
+    batch_size, channel, height, width = img.shape
+    pad_k = len_k // 4
+    shape = (batch_size, channel, (height + pad_k * 2) * 2, (width + pad_k * 2) * 2)
+    G_inv = (
+        scale_mat_single(2 / img_2x.shape[3], 2 / img_2x.shape[2])
+        @ G_inv
+        @ scale_mat_single(1 / (2 / shape[3]), 1 / (2 / shape[2]))
+    )
+    grid = F.affine_grid(G_inv[:, :2, :].to(img_2x), shape, align_corners=False)
+    img_affine = grid_sample(img_2x, grid)
+    d_p = -pad_k * 2
+    down_pad = (
+        d_p + (len_k - 2 + 1) // 2,
+        d_p + (len_k - 2) // 2,
+        d_p + (len_k - 2 + 1) // 2,
+        d_p + (len_k - 2) // 2,
+    )
+    img_down = upfirdn2d(
+        img_affine, kernel_flip.unsqueeze(0), down=(2, 1), pad=(*down_pad[:2], 0, 0)
+    )
+    img_down = upfirdn2d(
+        img_down, kernel_flip.unsqueeze(1), down=(1, 2), pad=(0, 0, *down_pad[2:])
     )
 
-    img_affine = F.grid_sample(
-        img_2x, grid, mode="bilinear", align_corners=False, padding_mode="zeros"
-    )
-
-    img_down = upfirdn2d(img_affine, kernel, down=2)
-
-    end_y = -pad_y2 - 1
-    if end_y == 0:
-        end_y = img_down.shape[2]
-
-    end_x = -pad_x2 - 1
-    if end_x == 0:
-        end_x = img_down.shape[3]
-
-    img = img_down[:, :, pad_y1:end_y, pad_x1:end_x]
-
-    return img, G
+    return img_down, G
 
 
 def apply_color(img, mat):
