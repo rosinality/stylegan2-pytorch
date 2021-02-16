@@ -10,8 +10,8 @@ I have tried to match official implementation as close as possible, but maybe th
 
 I have tested on:
 
-* PyTorch 1.3.1
-* CUDA 10.1/10.2
+- PyTorch 1.3.1
+- CUDA 10.1/10.2
 
 ## Usage
 
@@ -26,6 +26,14 @@ Then you can train model in distributed settings
 > python -m torch.distributed.launch --nproc_per_node=N_GPU --master_port=PORT train.py --batch BATCH_SIZE LMDB_PATH
 
 train.py supports Weights & Biases logging. If you want to use it, add --wandb arguments to the script.
+
+#### SWAGAN
+
+This implementation experimentally supports SWAGAN: A Style-based Wavelet-driven Generative Model (https://arxiv.org/abs/2102.06108). You can train SWAGAN by using
+
+> python -m torch.distributed.launch --nproc_per_node=N_GPU --master_port=PORT train.py --arch swagan --batch BATCH_SIZE LMDB_PATH
+
+As noted in the paper, SWAGAN trains much faster. (About ~2x at 256px.)
 
 ### Convert weight from official checkpoints
 
@@ -82,7 +90,6 @@ Sample from FFHQ. At 110,000 iterations. (trained on 3.52M images)
 ![MetFaces sample with non-leaking augmentations](doc/sample-metfaces.png)
 
 Sample from MetFaces with Non-leaking augmentations. At 150,000 iterations. (trained on 4.8M images)
-
 
 ### Samples from converted weights
 
