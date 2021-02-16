@@ -18,7 +18,7 @@ try:
 except ImportError:
     wandb = None
 
-from model import Generator, Discriminator
+
 from dataset import MultiResolutionDataset
 from distributed import (
     get_rank,
@@ -27,6 +27,7 @@ from distributed import (
     reduce_sum,
     get_world_size,
 )
+from op import conv2d_gradfix
 from non_leaking import augment, AdaptiveAugment
 
 
@@ -68,9 +69,10 @@ def d_logistic_loss(real_pred, fake_pred):
 
 
 def d_r1_loss(real_pred, real_img):
-    grad_real, = autograd.grad(
-        outputs=real_pred.sum(), inputs=real_img, create_graph=True
-    )
+    with conv2d_gradfix.no_weight_gradients():
+        grad_real, = autograd.grad(
+            outputs=real_pred.sum(), inputs=real_img, create_graph=True
+        )
     grad_penalty = grad_real.pow(2).reshape(grad_real.shape[0], -1).sum(1).mean()
 
     return grad_penalty
@@ -333,6 +335,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="StyleGAN2 trainer")
 
     parser.add_argument("path", type=str, help="path to the lmdb dataset")
+    parser.add_argument('--arch', type=str, default='stylegan2', help='model architectures (stylegan2 | swagan)')
     parser.add_argument(
         "--iter", type=int, default=800000, help="total training iterations"
     )
@@ -439,6 +442,12 @@ if __name__ == "__main__":
     args.n_mlp = 8
 
     args.start_iter = 0
+
+    if args.arch == 'stylegan2':
+        from model import Generator, Discriminator
+
+    elif args.arch == 'swagan':
+        from swagan import Generator, Discriminator
 
     generator = Generator(
         args.size, args.latent, args.n_mlp, channel_multiplier=args.channel_multiplier
