@@ -172,10 +172,15 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
         requires_grad(generator, False)
         requires_grad(discriminator, True)
 
-        noise = mixing_noise(args.batch, args.latent, args.mixing, device)
-        fake_img, _ = generator(noise)
+        # Run generator WITHOUT GRADIENTS for discriminator training 
+        # Mixing regularization:
+        #   Input multiple noise vectors (z1, z2) --> (w1, w2)
+        #   Randomly select either w1 or w2 at different style layers
+        #   Decorrelates style inputs between layers.
+        noise = mixing_noise(args.batch, args.latent, args.mixing, device) # TODO replace this function call with Encode(Img_a)
+        fake_img, _ = generator(noise) # TODO pass Img_p to generator
 
-        if args.augment:
+        if args.augment: # StyleGAN2-ADA differentiable augmentations
             real_img_aug, _ = augment(real_img, ada_aug_p)
             fake_img, _ = augment(fake_img, ada_aug_p)
 
@@ -200,7 +205,8 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
 
         d_regularize = i % args.d_reg_every == 0
 
-        if d_regularize:
+        # Lazy regularization only evaluates every args.d_reg_every for efficiency
+        if d_regularize: 
             real_img.requires_grad = True
 
             if args.augment:
@@ -217,15 +223,16 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
 
             d_optim.step()
 
-        loss_dict["r1"] = r1_loss
+        loss_dict["r1"] = r1_loss # R1 is a common GAN regularization loss from https://arxiv.org/abs/1801.04406v4
 
         requires_grad(generator, True)
         requires_grad(discriminator, False)
 
-        noise = mixing_noise(args.batch, args.latent, args.mixing, device)
-        fake_img, _ = generator(noise)
+        # Run generator WITH GRADIENTS for generator training 
+        noise = mixing_noise(args.batch, args.latent, args.mixing, device) # TODO replace this function call with Encode(Img_a)
+        fake_img, _ = generator(noise) # TODO pass Img_p to generator
 
-        if args.augment:
+        if args.augment: # StyleGAN2-ADA augmentations
             fake_img, _ = augment(fake_img, ada_aug_p)
 
         fake_pred = discriminator(fake_img)
@@ -239,7 +246,7 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
 
         g_regularize = i % args.g_reg_every == 0
 
-        if g_regularize:
+        if g_regularize: # Lazy regularization evaluates every g_reg_every steps
             path_batch_size = max(1, args.batch // args.path_batch_shrink)
             noise = mixing_noise(path_batch_size, args.latent, args.mixing, device)
             fake_img, latents = generator(noise, return_latents=True)
@@ -262,8 +269,9 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
                 reduce_sum(mean_path_length).item() / get_world_size()
             )
 
+        # Path length regularization from StyleGAN (penalize non-smooth interpolation through style space W)
         loss_dict["path"] = path_loss
-        loss_dict["path_length"] = path_lengths.mean()
+        loss_dict["path_length"] = path_lengths.mean() 
 
         accumulate(g_ema, g_module, accum)
 
