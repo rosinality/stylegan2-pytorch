@@ -416,8 +416,8 @@ class Generator(nn.Module):
         self.style = nn.Sequential(*layers)
 
         self.channels = {
-            4: 512,
-            8: 512,
+            #4: 512,
+            #8: 512,
             16: 512,
             32: 512,
             64: 256 * channel_multiplier,
@@ -427,24 +427,24 @@ class Generator(nn.Module):
             1024: 16 * channel_multiplier,
         }
 
-        self.input = ConstantInput(self.channels[4])
+        self.input = ConstantInput(self.channels[16])
         self.conv1 = StyledConv(
-            self.channels[4], self.channels[4], 3, style_dim, blur_kernel=blur_kernel
+            self.channels[16], self.channels[16], 3, style_dim, blur_kernel=blur_kernel
         )
-        self.to_rgb1 = ToRGB(self.channels[4], style_dim, upsample=False)
+        self.to_rgb1 = ToRGB(self.channels[16], style_dim, upsample=False)
 
         self.log_size = int(math.log(size, 2))
-        self.num_layers = (self.log_size - 2) * 2 + 1
+        self.num_layers = (self.log_size - 4) * 2 + 1 # 2 layers per resolution + 1 at the start
 
         self.convs = nn.ModuleList()
         self.upsamples = nn.ModuleList()
         self.to_rgbs = nn.ModuleList()
         self.noises = nn.Module()
 
-        in_channel = self.channels[4]
+        in_channel = self.channels[16]
 
         for layer_idx in range(self.num_layers):
-            res = (layer_idx + 5) // 2
+            res = (layer_idx + 9) // 2
             shape = [1, 1, 2 ** res, 2 ** res]
             self.noises.register_buffer(f"noise_{layer_idx}", torch.randn(*shape))
 
@@ -498,16 +498,16 @@ class Generator(nn.Module):
 
     def forward(
         self,
-        styles,
+        styles, # this is the noise vector z (becomes style code w)
         return_latents=False,
         inject_index=None,
         truncation=1,
         truncation_latent=None,
         input_is_latent=False,
-        noise=None,
+        noise=None, # this is the noise IMAGE which is added in each layer of the synthesis network
         randomize_noise=True,
     ):
-        if not input_is_latent:
+        if not input_is_latent: 
             styles = [self.style(s) for s in styles]
 
         if noise is None:
