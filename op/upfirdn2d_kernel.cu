@@ -212,7 +212,7 @@ torch::Tensor upfirdn2d_op(const torch::Tensor &input,
                            int pad_y0, int pad_y1) {
   int curDevice = -1;
   cudaGetDevice(&curDevice);
-  cudaStream_t stream = at::cuda::getCurrentCUDAStream(curDevice);
+  cudaStream_t stream = at::cuda::getCurrentCUDAStream();
 
   UpFirDn2DKernelParams p;
 
