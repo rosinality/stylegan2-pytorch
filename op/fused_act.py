@@ -27,7 +27,7 @@ class FusedLeakyReLUFunctionBackward(Function):
         empty = grad_output.new_empty(0)
 
         grad_input = fused.fused_bias_act(
-            grad_output, empty, out, 3, 1, negative_slope, scale
+            grad_output.contiguous(), empty, out, 3, 1, negative_slope, scale
         )
 
         dim = [0]
