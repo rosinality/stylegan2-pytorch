@@ -2,6 +2,8 @@
 
 Implementation of Analyzing and Improving the Image Quality of StyleGAN (https://arxiv.org/abs/1912.04958) in PyTorch
 
+## Modify this implentation for semanticGAN
+
 ## Notice
 
 I have tried to match official implementation as close as possible, but maybe there are some details I missed. So please use this implementation with care.
