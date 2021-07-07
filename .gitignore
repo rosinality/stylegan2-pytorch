@@ -1,3 +1,12 @@
+checkpoint/
+./nohup.out
+*.log
+rust_checkpoint/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
