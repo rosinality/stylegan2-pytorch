@@ -14,13 +14,11 @@ I have tested on:
 - CUDA 10.1/10.2
 
 StyleGAN2 contains custom CUDA kernels for improved performance.
-Less performant native PyTorch fallbacks are used by default.
+Less performant native PyTorch fallbacks are used by default. (https://github.com/harskish/ganspace/blob/master/SETUP.md)
 
 1. `cd ./op`
 2. `python setup.py install`
 3. Test: `python -c "import torch; import upfirdn2d_op; import fused; print('OK')"`
-
-(https://github.com/harskish/ganspace/blob/master/SETUP.md)
 
 ## Usage
 
