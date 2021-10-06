@@ -207,9 +207,9 @@ def sample_affine(p, size, height, width, device="cpu"):
     # print('90 rotate', G, rotate_mat(-math.pi / 2 * param), sep='\n')
 
     # integer translate
-    param = uniform_sample(size, -0.125, 0.125)
-    param_height = torch.round(param * height) / height
-    param_width = torch.round(param * width) / width
+    param = uniform_sample((2, size), -0.125, 0.125)
+    param_height = torch.round(param[0] * height)
+    param_width = torch.round(param[1] * width)
     Gc = translate_mat(param_width, param_height, device=device)
     G = random_mat_apply(p, Gc, G, eye, device=device)
     # print('integer translate', G, translate_mat(param_width, param_height), sep='\n')
@@ -241,8 +241,8 @@ def sample_affine(p, size, height, width, device="cpu"):
     # print('post-rotate', G, rotate_mat(-param), sep='\n')
 
     # fractional translate
-    param = normal_sample(size, std=0.125)
-    Gc = translate_mat(param, param, device=device)
+    param = normal_sample((2, size), std=0.125)
+    Gc = translate_mat(param[1] * width, param[0] * height, device=device)
     G = random_mat_apply(p, Gc, G, eye, device=device)
     # print('fractional translate', G, translate_mat(param, param), sep='\n')
 
@@ -365,7 +365,7 @@ class GridSampleBackward(autograd.Function):
 
     @staticmethod
     def backward(ctx, grad_grad_input, grad_grad_grid):
-        grid, = ctx.saved_tensors
+        (grid,) = ctx.saved_tensors
         grad_grad_output = None
 
         if ctx.needs_input_grad[0]:
