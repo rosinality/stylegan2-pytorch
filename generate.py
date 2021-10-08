@@ -4,6 +4,8 @@ import torch
 from torchvision import utils
 from model import Generator
 from tqdm import tqdm
+import os.path as osp
+import os
 
 
 def generate(args, g_ema, device, mean_latent):
@@ -63,7 +65,18 @@ if __name__ == "__main__":
         help="channel multiplier of the generator. config-f = 2, else = 1",
     )
 
+    parser.add_argument(
+        '-o',
+        "--output_path",
+        type=str,
+        default="sample",
+        help="root path save sample",
+    )
     args = parser.parse_args()
+
+    args.output_path = osp.join( args.output_path,f"{osp.basename(args.ckpt).split('.')[0]}_{args.size}")
+    os.makedirs(args.output_path,exist_ok=True)
+
 
     args.latent = 512
     args.n_mlp = 8
