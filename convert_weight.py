@@ -295,7 +295,14 @@ if __name__ == "__main__":
     img_concat = torch.cat((img_tf, img_pt, img_diff), dim=0)
 
     print(img_diff.abs().max())
+    
+
 
     utils.save_image(
         img_concat, name + ".png", nrow=n_sample, normalize=True, range=(-1, 1)
     )
+
+    print(f"save sample images {name}.png")
+    print("converting weight complete!!!")
+
+
