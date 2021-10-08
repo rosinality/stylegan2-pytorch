@@ -53,7 +53,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--ckpt",
         type=str,
-        default="stylegan2-ffhq-config-f.pt",
+        default="checkpoint/stylegan2-ffhq-config-f.pt",
         help="path to the model checkpoint",
     )
     parser.add_argument(
