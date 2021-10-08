@@ -21,7 +21,7 @@ def generate(args, g_ema, device, mean_latent,output_path):
 
             utils.save_image(
                 sample,
-                osp.joinn(output_path,f"{str(i).zfill(6)}.png"),
+                osp.join(output_path,f"{str(i).zfill(6)}.png"),
                 nrow=1,
                 normalize=True,
                 range=(-1, 1),
