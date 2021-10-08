@@ -8,7 +8,7 @@ import os.path as osp
 import os
 
 
-def generate(args, g_ema, device, mean_latent):
+def generate(args, g_ema, device, mean_latent,output_path):
 
     with torch.no_grad():
         g_ema.eval()
@@ -21,7 +21,7 @@ def generate(args, g_ema, device, mean_latent):
 
             utils.save_image(
                 sample,
-                f"sample/{str(i).zfill(6)}.png",
+                osp.joinn(output_path,f"{str(i).zfill(6)}.png"),
                 nrow=1,
                 normalize=True,
                 range=(-1, 1),
@@ -94,4 +94,4 @@ if __name__ == "__main__":
     else:
         mean_latent = None
 
-    generate(args, g_ema, device, mean_latent)
+    generate(args, g_ema, device, mean_latent,output_path)
