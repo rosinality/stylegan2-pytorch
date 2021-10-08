@@ -94,4 +94,4 @@ if __name__ == "__main__":
     else:
         mean_latent = None
 
-    generate(args, g_ema, device, mean_latent,output_path)
+    generate(args, g_ema, device, mean_latent,args.output_path)
