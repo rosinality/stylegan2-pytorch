@@ -234,13 +234,13 @@ if __name__ == "__main__":
         noise_single = []
         for noise in noises:
             noise_single.append(noise[i : i + 1])
-
+        # latent: "w",  img: "inversed image"
         result_file[input_name] = {
             "img": img_gen[i],
-            "latent": latent_in[i],
+            "latent": latent_in[i], 
             "noise": noise_single,
         }
-
+        
         img_name = os.path.splitext(os.path.basename(input_name))[0] + "-project.png"
         pil_img = Image.fromarray(img_ar[i])
         pil_img.save(img_name)
