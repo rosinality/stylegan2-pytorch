@@ -18,9 +18,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="automatically download the pretrained weight and save in the Pytorch default cache, necessary for offline training system")
     parser.add_argument("--arch", type=str, default='vgg16', help="backbone architecture to download",choices=list(model_urls.keys())) 
     
-
     args = parser.parse_args()
-
 
     arch = args.arch
     load_state_dict_from_url(model_urls[arch],progress=True)
