@@ -149,7 +149,7 @@ if __name__ == "__main__":
     print("Making Dataloader")
     print(f"Loading images from: {args.img_path}")
     if args.continue_project: 
-        print(f"Continue projection from previous process that have finised projecting {len(completed_images)}")
+        print(f"Continue projection from previous process that have finished projecting {len(completed_images)} images")
         my_dataset = CustomDataSet(args.img_path, transform=transform, completed_images=completed_images)
         print(f"total to project: {len(my_dataset.total_imgs)}")
 
