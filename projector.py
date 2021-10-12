@@ -103,13 +103,15 @@ if __name__ == "__main__":
     parser.add_argument("-o","--output_path",default='projected_output') 
     parser.add_argument("--tqdm_off",action='store_true',default='turn on tqdm progressive bar off')
 
-
+    print("starting projector.py")
     args = parser.parse_args()
     w_flag = 'W' if not args.w_plus else 'W_PLUS'
     args.output_path = osp.join( args.output_path,f"projected_{w_flag}_{args.step}step_{args.size}_{osp.basename(args.ckpt).split('.')[0]}")
     args.output_feature_path = osp.join(args.output_path,'projected_latent_dict')
     args.output_img_path = osp.join(args.output_path,'inversed_imgs')
     os.makedirs(args.output_path,exist_ok=True)
+    os.makedirs(args.output_feature_path,exist_ok=True)
+    os.makedirs(args.output_img_path,exist_ok=True)
 
     PrettyPrinter().pprint(vars(args))
 
