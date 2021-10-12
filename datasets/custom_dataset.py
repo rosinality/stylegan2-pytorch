@@ -7,7 +7,7 @@ class CustomDataSet(Dataset):
     def __init__(self, main_dir, transform,completed_images=[]):
         self.main_dir = main_dir
         self.transform = transform
-        all_imgs = [img for img os.listdir(main_dir) if img not in completed_images]
+        all_imgs = [img for img in os.listdir(main_dir) if img not in completed_images]
         self.total_imgs = natsorted(all_imgs)
 
     def __len__(self):
