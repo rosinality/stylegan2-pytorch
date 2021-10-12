@@ -97,7 +97,7 @@ if __name__ == "__main__":
     parser.add_argument("--w_plus",action="store_true",help="allow to use distinct latent codes to each layers",)
     parser.add_argument("-b", "--batch_size",type=int,default=32)
     parser.add_argument("-img","--img_path", help="path to image folder to be projected")
-    parser.add_argument("--gpu", default ='0',type='str', help="CUDA ID, e.g. 0 or 1,2") 
+    parser.add_argument("--gpu", default ='0',type=str, help="CUDA ID, e.g. 0 or 1,2") 
     parser.add_argument("--device", default='cuda',choices=['cuda','cpu']) 
     parser.add_argument("--n_mean_latent",type=int, default=1000) 
     parser.add_argument("-o","--output_path",default='projected_output') 
