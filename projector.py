@@ -110,6 +110,8 @@ if __name__ == "__main__":
     args.output_feature_path = osp.join(args.output_path,'projected_latent_dict')
     args.output_img_path = osp.join(args.output_path,'inversed_imgs')
     os.makedirs(args.output_path,exist_ok=True)
+    os.makedirs(args.output_feature_path,exist_ok=True)
+    os.makedirs(args.output_img_path,exist_ok=True)
 
     PrettyPrinter().pprint(vars(args))
 
