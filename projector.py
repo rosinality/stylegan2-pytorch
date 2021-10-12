@@ -97,9 +97,9 @@ if __name__ == "__main__":
     parser.add_argument("--w_plus",action="store_true",help="allow to use distinct latent codes to each layers",)
     parser.add_argument("-b", "--batch_size",type=int,default=32)
     parser.add_argument("-img","--img_path", help="path to image folder to be projected")
-    parser.add_argument("--gpu", default ='0', help="CUDA ID, e.g. 0 or 1,2") 
+    parser.add_argument("--gpu", default ='0',type='str', help="CUDA ID, e.g. 0 or 1,2") 
     parser.add_argument("--device", default='cuda',choices=['cuda','cpu']) 
-    parser.add_argument("--n_mean_latent", default=1000) 
+    parser.add_argument("--n_mean_latent",type=int, default=1000) 
     parser.add_argument("-o","--output_path",default='projected_output') 
     parser.add_argument("--tqdm_off",action='store_true',default='turn on tqdm progressive bar off')
 
@@ -136,7 +136,7 @@ if __name__ == "__main__":
     my_dataset = CustomDataSet(args.img_path, transform=transform)
     dataloader = DataLoader(my_dataset , batch_size=args.batch_size, shuffle=False, 
                                num_workers=4, drop_last=True)
-    print(f"Dataloader: total_imgs:{len(my_dataset.totals_imgs)} , batch_size {args.batch_size}")
+    print(f"Dataloader: total_imgs:{len(my_dataset.total_imgs)} , batch_size {args.batch_size}")
     
 
     print("Init Generator")
