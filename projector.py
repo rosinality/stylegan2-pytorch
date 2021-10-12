@@ -81,6 +81,7 @@ def make_image(tensor):
 
 if __name__ == "__main__":
     
+    print("starting projector.py")
 
     parser = argparse.ArgumentParser(description="Image projector to the generator latent spaces")
 
@@ -97,13 +98,13 @@ if __name__ == "__main__":
     parser.add_argument("--w_plus",action="store_true",help="allow to use distinct latent codes to each layers",)
     parser.add_argument("-b", "--batch_size",type=int,default=32)
     parser.add_argument("-img","--img_path", help="path to image folder to be projected")
-    parser.add_argument("--gpu", default ='0',type=str, help="CUDA ID, e.g. 0 or 1,2") 
+    parser.add_argument("--gpu", default='0',type=str, help="CUDA ID, e.g. 0 or 1,2") 
     parser.add_argument("--device", default='cuda',choices=['cuda','cpu']) 
     parser.add_argument("--n_mean_latent",type=int, default=1000) 
     parser.add_argument("-o","--output_path",default='projected_output') 
     parser.add_argument("--tqdm_off",action='store_true',default='turn on tqdm progressive bar off')
 
-    print("starting projector.py")
+    
     args = parser.parse_args()
     w_flag = 'W' if not args.w_plus else 'W_PLUS'
     args.output_path = osp.join( args.output_path,f"projected_{w_flag}_{args.step}step_{args.size}_{osp.basename(args.ckpt).split('.')[0]}")
@@ -161,7 +162,8 @@ if __name__ == "__main__":
     print(f"the result will be saved at: {args.output_path}")
     print("start projection")
     print(f"total step : {args.step}")
-    for i,batch in tqdm(enumerate(dataloader),disable=args.tqdm_off):
+    for i,batch in tqdm(enumerate(dataloader),ascii=True):  #disable=args.tqdm_off):
+        #if args.tqdm_off: print(f"processing batch: {i}/{len(dataloader)}")
         fnames,imgs =batch
         imgs = imgs.to(args.device) if torch.cuda.device_count() >= 1 else imgs
 
@@ -245,4 +247,4 @@ if __name__ == "__main__":
             pil_img = Image.fromarray(img_ar[i])
             pil_img.save(osp.join(args.output_img_path,img_name))
             feature_name = f"{os.path.splitext(os.path.basename(fname))[0]}_projected.pt"
-            torch.save(projected_result, (args.output_feature_path,feature_name))
+            torch.save(projected_result, osp.join(args.output_feature_path,feature_name))
