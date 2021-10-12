@@ -132,6 +132,8 @@ if __name__ == "__main__":
     parser.add_argument("--n_mean_latent", default=1000) 
     parser.add_argument("-o","--output_path",default='projected_output') 
 
+    parser.add_argument("--tqdm_off",action='store_true',default='turn on tqdm progressive bar off')
+
 
     args = parser.parse_args()
     w_flag = 'W' if not args.w_plus else 'W_PLUS'
@@ -186,7 +188,7 @@ if __name__ == "__main__":
     print(f"the result will be saved at: {args.output_path}")
     print("start projection")
     print(f"total step : {args.step}")
-    for i,batch in tqdm(enumerate(dataloader)):
+    for i,batch in tqdm(enumerate(dataloader),disable=args.tqdm_off):
         fnames,imgs =batch
         imgs = imgs.to(args.device) if torch.cuda.device_count() >= 1 else imgs
 
@@ -207,7 +209,7 @@ if __name__ == "__main__":
 
         optimizer = optim.Adam([latent_in] + noises, lr=args.lr)
 
-        pbar = tqdm(range(args.step))
+        pbar = tqdm(range(args.step),disable=args.tqdm_off)
         latent_path = []
 
         for i in pbar:
