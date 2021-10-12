@@ -103,6 +103,8 @@ if __name__ == "__main__":
     parser.add_argument("--n_mean_latent",type=int, default=1000) 
     parser.add_argument("-o","--output_path",default='projected_output') 
     parser.add_argument("--tqdm_off",action='store_true',default='turn on tqdm progressive bar off')
+    parser.add_argument("--continue_project",action='store_true',default='continue projecting process')
+
 
     
     args = parser.parse_args()
@@ -110,9 +112,19 @@ if __name__ == "__main__":
     args.output_path = osp.join( args.output_path,f"projected_{w_flag}_{args.step}step_{args.size}_{osp.basename(args.ckpt).split('.')[0]}")
     args.output_feature_path = osp.join(args.output_path,'projected_latent_dict')
     args.output_img_path = osp.join(args.output_path,'inversed_imgs')
-    os.makedirs(args.output_path,exist_ok=True)
-    os.makedirs(args.output_feature_path,exist_ok=True)
-    os.makedirs(args.output_img_path,exist_ok=True)
+    
+    if args.continue_project and osp.exists(args.output_feature_path) and osp.exists(args.output_img_path):
+        completed_reversed_file = os.listdir(args.output_feature_path)
+        completed_images = [fname.split("_")[0]+'.jpg' for fname in completed_reversed_file] # f"{os.path.splitext(os.path.basename(fname))[0]}_projected.pt"
+        print(f"there are {len(completed_images)} images that have been projected")
+        print('continue projection from the previous process')
+    elif args.continue_project:
+         raise Exception("the result of the previous process do not exist, please start new projection process (do not use continue_project)")
+    else:
+        print('start new projection')
+        os.makedirs(args.output_path,exist_ok=True)
+        os.makedirs(args.output_feature_path,exist_ok=True)
+        os.makedirs(args.output_img_path,exist_ok=True)
 
     PrettyPrinter().pprint(vars(args))
 
@@ -136,6 +148,11 @@ if __name__ == "__main__":
     
     print("Making Dataloader")
     print(f"Loading images from: {args.img_path}")
+    if args.continue_project: 
+        print(f"Continue projection from previous process that have finised projecting {len(completed_images)}")
+        my_dataset = CustomDataSet(args.img_path, transform=transform, completed_images=completed_images)
+        print(f"total to project: {len(my_dataset.total_imgs)}")
+
     my_dataset = CustomDataSet(args.img_path, transform=transform)
     dataloader = DataLoader(my_dataset , batch_size=args.batch_size, shuffle=False, 
                                num_workers=4, drop_last=True)
@@ -163,7 +180,7 @@ if __name__ == "__main__":
     print("start projection")
     print(f"total step : {args.step}")
     for i,batch in tqdm(enumerate(dataloader),ascii=True):  #disable=args.tqdm_off):
-        #if args.tqdm_off: print(f"processing batch: {i}/{len(dataloader)}")
+        # if args.tqdm_off: print(f"processing batch: {i}/{len(dataloader)}")
         fnames,imgs =batch
         imgs = imgs.to(args.device) if torch.cuda.device_count() >= 1 else imgs
 
