@@ -104,6 +104,7 @@ if __name__ == "__main__":
     parser.add_argument("-o","--output_path",default='projected_output') 
     parser.add_argument("--tqdm_off",action='store_true',default='turn on tqdm progressive bar off')
     parser.add_argument("--continue_project",action='store_true',default='continue projecting process')
+    parser.add_argument("--index_range",type='str',default=None,help='index range of images of interest eg 0,3000 (splited by comma) --> project images 0 - 2999th')
 
 
     
@@ -113,6 +114,7 @@ if __name__ == "__main__":
     args.output_feature_path = osp.join(args.output_path,'projected_latent_dict')
     args.output_img_path = osp.join(args.output_path,'inversed_imgs')
     
+    if args.index_range != None: args.index_range = [int(i) for i in args.index_range.split(',')]
     if args.continue_project and osp.exists(args.output_feature_path) and osp.exists(args.output_img_path):
         completed_reversed_file = os.listdir(args.output_feature_path)
         completed_images = [fname.split("_")[0]+'.jpg' for fname in completed_reversed_file] # f"{os.path.splitext(os.path.basename(fname))[0]}_projected.pt"
@@ -149,11 +151,11 @@ if __name__ == "__main__":
     print("Making Dataloader")
     print(f"Loading images from: {args.img_path}")
     if args.continue_project: 
-        print(f"Continue projection from previous process that have finished projecting {len(completed_images)} images")
-        my_dataset = CustomDataSet(args.img_path, transform=transform, completed_images=completed_images)
+        # print(f"Continue projection from previous process that have finished projecting {len(completed_images)} images")
+        my_dataset = CustomDataSet(args.img_path, transform=transform, completed_images=completed_images,index_range=args.index_range)
         print(f"total to project: {len(my_dataset.total_imgs)}")
 
-    my_dataset = CustomDataSet(args.img_path, transform=transform)
+    my_dataset = CustomDataSet(args.img_path, transform=transform, index_range=args.index_range)
     dataloader = DataLoader(my_dataset , batch_size=args.batch_size, shuffle=False, 
                                num_workers=4, drop_last=True)
     print(f"Dataloader: total_imgs:{len(my_dataset.total_imgs)} , batch_size {args.batch_size}")
