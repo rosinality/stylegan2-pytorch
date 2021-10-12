@@ -81,57 +81,25 @@ def make_image(tensor):
 if __name__ == "__main__":
     
 
-    parser = argparse.ArgumentParser(
-        description="Image projector to the generator latent spaces"
-    )
-    parser.add_argument(
-        "--ckpt", type=str, required=True, help="path to the model checkpoint"
-    )
-    parser.add_argument(
-        "--size", type=int, default=256, help="output image sizes of the generator"
-    )
-    parser.add_argument(
-        "--lr_rampup",
-        type=float,
-        default=0.05,
-        help="duration of the learning rate warmup",
-    )
-    parser.add_argument(
-        "--lr_rampdown",
-        type=float,
-        default=0.25,
-        help="duration of the learning rate decay",
-    )
+    parser = argparse.ArgumentParser(description="Image projector to the generator latent spaces")
+    
+    parser.add_argument("--ckpt", type=str, required=True, help="path to the model checkpoint")
+    parser.add_argument("--size", type=int, default=256, help="output image sizes of the generator")
+    parser.add_argument("--lr_rampup",type=float,default=0.05,help="duration of the learning rate warmup",)
+    parser.add_argument("--lr_rampdown",type=float,default=0.25,help="duration of the learning rate decay",)
     parser.add_argument("--lr", type=float, default=0.1, help="learning rate")
-    parser.add_argument(
-        "--noise", type=float, default=0.05, help="strength of the noise level"
-    )
-    parser.add_argument(
-        "--noise_ramp",
-        type=float,
-        default=0.75,
-        help="duration of the noise level decay",
-    )
+    parser.add_argument("--noise", type=float, default=0.05, help="strength of the noise level")
+    parser.add_argument("--noise_ramp",type=float,default=0.75,help="duration of the noise level decay",)
     parser.add_argument("--step", type=int, default=1000, help="optimize iterations")
-    parser.add_argument(
-        "--noise_regularize",
-        type=float,
-        default=1e5,
-        help="weight of the noise regularization",
-    )
+    parser.add_argument("--noise_regularize",type=float,default=1e5,help="weight of the noise regularization")
     parser.add_argument("--mse", type=float, default=0, help="weight of the mse loss")
-    parser.add_argument(
-        "--w_plus",
-        action="store_true",
-        help="allow to use distinct latent codes to each layers",
-    )
+    parser.add_argument("--w_plus",action="store_true",help="allow to use distinct latent codes to each layers",)
     parser.add_argument("-b", "--batch_size", default=32)
     parser.add_argument("-img","--img_path", help="path to image folder to be projected")
-    parser.add_argument("--gpu", help="CUDA ID, e.g. 0 or 1,2") 
+    parser.add_argument("--gpu", default ='0', help="CUDA ID, e.g. 0 or 1,2") 
     parser.add_argument("--device", default='cuda',choices=['cuda','cpu']) 
     parser.add_argument("--n_mean_latent", default=1000) 
     parser.add_argument("-o","--output_path",default='projected_output') 
-
     parser.add_argument("--tqdm_off",action='store_true',default='turn on tqdm progressive bar off')
 
 
