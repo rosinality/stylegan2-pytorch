@@ -17,6 +17,7 @@ from tqdm import tqdm
 from torch.backends import cudnn
 from PIL import Image
 import os.path as osp
+from pprint import PrettyPrinter
 
 
 def noise_regularize(noises):
@@ -82,7 +83,7 @@ if __name__ == "__main__":
     
 
     parser = argparse.ArgumentParser(description="Image projector to the generator latent spaces")
-    
+
     parser.add_argument("--ckpt", type=str, required=True, help="path to the model checkpoint")
     parser.add_argument("--size", type=int, default=256, help="output image sizes of the generator")
     parser.add_argument("--lr_rampup",type=float,default=0.05,help="duration of the learning rate warmup",)
@@ -109,6 +110,8 @@ if __name__ == "__main__":
     args.output_feature_path = osp.join(args.output_path,'projected_latent_dict')
     args.output_img_path = osp.join(args.output_path,'inversed_imgs')
     os.makedirs(args.output_path,exist_ok=True)
+
+    PrettyPrinter().pprint(vars(args))
 
     # TODO: this is not make use of multi-GPU yet
     if args.device == "cuda":
