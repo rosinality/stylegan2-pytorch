@@ -195,7 +195,6 @@ if __name__ == "__main__":
     # Manually use Dataparallel
     percept = lpips.PerceptualLoss(model="net-lin", net="vgg", use_gpu=args.device.startswith("cuda"))
     if torch.cuda.device_count() > 1: 
-        percept = lpips.PerceptualLoss(model="net-lin", net="vgg", use_gpu=False)
         print(f"lpips's default device idx : {args.lpips_default_device_idx}")
         lpips_cuda = torch.device(f'cuda:{gpu_ids[args.lpips_default_device_idx]}')
         percept = nn.DataParallel(percept,device_ids=[int(device_id.strip() ) for  device_id in args.gpu.split(',')]).to(lpips_cuda)
