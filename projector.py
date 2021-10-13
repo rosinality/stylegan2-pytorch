@@ -104,7 +104,7 @@ if __name__ == "__main__":
     parser.add_argument("-o","--output_path",default='projected_output') 
     parser.add_argument("--tqdm_off",action='store_true',default='turn on tqdm progressive bar off')
     parser.add_argument("--continue_project",action='store_true',default='continue projecting process')
-    parser.add_argument("--index_range",type='str',default=None,help='index range of images of interest eg 0,3000 (splited by comma) --> project images 0 - 2999th')
+    parser.add_argument("--index_range",type=str,default=None,help='index range of images of interest eg 0,3000 (splited by comma) --> project images 0 - 2999th')
 
 
     
@@ -170,7 +170,7 @@ if __name__ == "__main__":
     n_mean_latent = args.n_mean_latent  # 1000
     with torch.no_grad():
         noise_sample = torch.randn(n_mean_latent, 512, device=args.device)
-        latent_out = g_ema.style(noise_sample)
+        cvlab2021 = g_ema.style(noise_sample)
 
         latent_mean = latent_out.mean(0)
         latent_std = ((latent_out - latent_mean).pow(2).sum() / n_mean_latent) ** 0.5
