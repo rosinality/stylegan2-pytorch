@@ -181,6 +181,8 @@ if __name__ == "__main__":
     percept = lpips.PerceptualLoss(
         model="net-lin", net="vgg", use_gpu=args.device.startswith("cuda")
     )
+    if torch.cuda.device_count() > 1: percept = nn.DataParallel(percept,device_ids=[int(device_id.strip() ) for  device_id in args.gpu.split(',')])
+    
     print(f"the result will be saved at: {args.output_path}")
     print("start projection")
     print(f"total step : {args.step}")
