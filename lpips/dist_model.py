@@ -96,7 +96,7 @@ class DistModel(BaseModel):
             self.net.eval()
 
         if(use_gpu):
-            if len(gpu_ids) > 1: default_device_id = gpu_ids[default_device_idx] else 0
+            default_device_id = gpu_ids[default_device_idx] if len(gpu_ids) > 1 else 0
             self.net.to(default_device_id)
             self.net = torch.nn.DataParallel(self.net, device_ids=gpu_ids)
             if(self.is_train):
