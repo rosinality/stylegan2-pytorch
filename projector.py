@@ -159,7 +159,7 @@ if __name__ == "__main__":
         print(f"total to project: {len(my_dataset.total_imgs)}")
     else: my_dataset = CustomDataSet(args.img_path, transform=transform, index_range=args.index_range)
     dataloader = DataLoader(my_dataset , batch_size=args.batch_size, shuffle=False, 
-                               num_workers=4, drop_last=True)
+                               num_workers=4, drop_last=False)
     print(f"Dataloader: total_imgs:{len(my_dataset.total_imgs)} , batch_size {args.batch_size}")
     
 
