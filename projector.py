@@ -182,18 +182,18 @@ if __name__ == "__main__":
 
     # TODO: This doesn't work
     # percept will be Dataprallel already if we use multiple-gpu : parameter "gpu_ids"
-    # lpips_default_device_idx = 0
-    # lpips_gpu_ids = list(gpu_ids)
-    # if torch.cuda.device_count() > 1: 
-    #     lpips_default_device_idx = args.lpips_default_device_idx   # I create this parameter to choose default devide for lpips
-    #     lpips_gpu_ids[0],lpips_gpu_ids[lpips_default_device_idx] = lpips_gpu_ids[lpips_default_device_idx],lpips_gpu_ids[0]  # swap the first index; the first index will be default cuda of LPIPS (default of Dataparallel)
-    #     print(f"lpips's default device idx : {lpips_default_device_idx}")
-    # lpips_cuda = torch.device(f'cuda:{gpu_ids[lpips_default_device_idx]}')
-    # print(f"lpips's default cuda : {lpips_cuda}")
-    # percept = lpips.PerceptualLoss(model="net-lin", net="vgg", use_gpu=args.device.startswith("cuda"), gpu_ids =lpips_gpu_ids,default_device_idx=lpips_default_device_idx) # TODO: lpips_default_device_idx is not being used
+    lpips_default_device_idx = 0
+    lpips_gpu_ids = list(gpu_ids)
+    if torch.cuda.device_count() > 1: 
+        lpips_default_device_idx = args.lpips_default_device_idx   # I create this parameter to choose default devide for lpips
+        lpips_gpu_ids[0],lpips_gpu_ids[lpips_default_device_idx] = lpips_gpu_ids[lpips_default_device_idx],lpips_gpu_ids[0]  # swap the first index; the first index will be default cuda of LPIPS (default of Dataparallel)
+        print(f"lpips's default device idx : {lpips_default_device_idx}")
+    lpips_cuda = torch.device(f'cuda:{gpu_ids[lpips_default_device_idx]}')
+    print(f"lpips's default cuda : {lpips_cuda}")
+    percept = lpips.PerceptualLoss(model="net-lin", net="vgg", use_gpu=args.device.startswith("cuda"), gpu_ids =lpips_gpu_ids,default_device_idx=lpips_default_device_idx) # TODO: lpips_default_device_idx is not being used
 
     # Manually use Dataparallel
-    percept = lpips.PerceptualLoss(model="net-lin", net="vgg", use_gpu=args.device.startswith("cuda"))
+    # percept = lpips.PerceptualLoss(model="net-lin", net="vgg", use_gpu=args.device.startswith("cuda"))
     if torch.cuda.device_count() > 1: 
         print(f"lpips's default device idx : {args.lpips_default_device_idx}")
         lpips_cuda = torch.device(f'cuda:{gpu_ids[args.lpips_default_device_idx]}')
@@ -250,7 +250,7 @@ if __name__ == "__main__":
                 img_gen = img_gen.mean([3, 5])
 
             
-            print(f"img_gen device: {img_gen.get_device()}, imgs device:{imgs.get_device()}" )
+            # print(f"img_gen device: {img_gen.get_device()}, imgs device:{imgs.get_device()}" )
             p_loss = percept(img_gen, imgs).sum()
             n_loss = noise_regularize(noises)
             mse_loss = F.mse_loss(img_gen, imgs)
