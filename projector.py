@@ -179,7 +179,7 @@ if __name__ == "__main__":
         latent_std = ((latent_out - latent_mean).pow(2).sum() / n_mean_latent) ** 0.5
 
     percept = lpips.PerceptualLoss(
-        model="net-lin", net="vgg", use_gpu=args.device.startswith("cuda")
+        model="net-lin", net="vgg", use_gpu=args.device.startswith("cuda"), 
     )
     if torch.cuda.device_count() > 1: 
         cuda1 = torch.device('cuda:1')
