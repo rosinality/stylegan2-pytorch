@@ -172,7 +172,8 @@ if __name__ == "__main__":
     n_mean_latent = args.n_mean_latent  # 1000
     with torch.no_grad():
         noise_sample = torch.randn(n_mean_latent, 512, device=args.device)
-        latent_out = g_ema.style(noise_sample)
+        if torch.cuda.device_count() > 1: latent_out = g_ema.module.style(noise_sample)
+        else: latent_out = g_ema.style(noise_sample)
 
         latent_mean = latent_out.mean(0)
         latent_std = ((latent_out - latent_mean).pow(2).sum() / n_mean_latent) ** 0.5
