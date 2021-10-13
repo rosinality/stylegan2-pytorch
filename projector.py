@@ -105,7 +105,7 @@ if __name__ == "__main__":
     parser.add_argument("--tqdm_off",action='store_true',default='turn on tqdm progressive bar off')
     parser.add_argument("--continue_project",action='store_true',default='continue projecting process')
     parser.add_argument("--index_range",type=str,default=None,help='index range of images of interest eg 0,3000 (splited by comma) --> project images 0 - 2999th')
-    parser.add_argument("--lpips_default_device_idx",type=int, default=0,help="lpips's default device idx")
+    parser.add_argument("--lpips_default_device_idx",type=int, default=1,help="lpips's default device idx")
     
 
 
@@ -180,8 +180,8 @@ if __name__ == "__main__":
         latent_mean = latent_out.mean(0)
         latent_std = ((latent_out - latent_mean).pow(2).sum() / n_mean_latent) ** 0.5
 
+    # TODO: This doesn't work
     # percept will be Dataprallel already if we use multiple-gpu : parameter "gpu_ids"
-    
     # lpips_default_device_idx = 0
     # lpips_gpu_ids = list(gpu_ids)
     # if torch.cuda.device_count() > 1: 
@@ -192,11 +192,12 @@ if __name__ == "__main__":
     # print(f"lpips's default cuda : {lpips_cuda}")
     # percept = lpips.PerceptualLoss(model="net-lin", net="vgg", use_gpu=args.device.startswith("cuda"), gpu_ids =lpips_gpu_ids,default_device_idx=lpips_default_device_idx) # TODO: lpips_default_device_idx is not being used
 
-
+    # Manually use Dataparallel
     percept = lpips.PerceptualLoss(model="net-lin", net="vgg", use_gpu=args.device.startswith("cuda"))
     if torch.cuda.device_count() > 1: 
-        cuda1 = torch.device('cuda:1')
-        percept = nn.DataParallel(percept,device_ids=[int(device_id.strip() ) for  device_id in args.gpu.split(',')]).to(cuda1)
+        print(f"lpips's default device idx : {args.lpips_default_device_idx}")
+        lpips_cuda = torch.device(f'cuda:{gpu_ids[args.lpips_default_device_idx]}')
+        percept = nn.DataParallel(percept,device_ids=[int(device_id.strip() ) for  device_id in args.gpu.split(',')]).to(lpips_cuda)
 
     print(f"the result will be saved at: {args.output_path}")
     print("start projection")
