@@ -227,7 +227,7 @@ if __name__ == "__main__":
 
         optimizer = optim.Adam([latent_in] + noises, lr=args.lr)
 
-        pbar = tqdm(range(args.step),ascii=True,miniters=int(args.step/200))  #disable=args.tqdm_off)
+        pbar = tqdm(range(args.step),ascii=True,miniters=int(args.step/200),disable=args.tqdm_off)  #disable=args.tqdm_off)
         latent_path = []
 
         for i in pbar:
