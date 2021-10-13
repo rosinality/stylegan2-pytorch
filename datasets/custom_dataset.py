@@ -8,6 +8,7 @@ class CustomDataSet(Dataset):
         self.main_dir = main_dir
         self.transform = transform
         all_imgs = os.listdir(main_dir)
+        all_imgs = natsorted(all_imgs)
         if index_range != None: 
             print(f"applying index range {index_range}")
             start_index = index_range[0]; end_index = index_range[1]

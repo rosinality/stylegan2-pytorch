@@ -116,7 +116,7 @@ if __name__ == "__main__":
     args.output_feature_path = osp.join(args.output_path,'projected_latent_dict')
     args.output_img_path = osp.join(args.output_path,'inversed_imgs')
     
-    if args.index_range != None: args.index_range = [int(i) for i in args.index_range.split(',')]
+    if args.index_range != None: args.index_range = [int(i.strip()) for i in args.index_range.split(',')]
     if args.continue_project and osp.exists(args.output_feature_path) and osp.exists(args.output_img_path):
         completed_reversed_file = os.listdir(args.output_feature_path)
         completed_images = [fname.split("_")[0]+'.jpg' for fname in completed_reversed_file] # f"{os.path.splitext(os.path.basename(fname))[0]}_projected.pt"
@@ -227,7 +227,7 @@ if __name__ == "__main__":
 
         optimizer = optim.Adam([latent_in] + noises, lr=args.lr)
 
-        pbar = tqdm(range(args.step),ascii=True)  #disable=args.tqdm_off)
+        pbar = tqdm(range(args.step),ascii=True,miniters=int(args.step/200))  #disable=args.tqdm_off)
         latent_path = []
 
         for i in pbar:
@@ -266,17 +266,17 @@ if __name__ == "__main__":
             if (i + 1) % 100 == 0:
                 latent_path.append(latent_in.detach().clone())
 
-            pbar.set_description(
-                (
-                    f"perceptual: {p_loss.item():.4f}; noise regularize: {n_loss.item():.4f};"
-                    f" mse: {mse_loss.item():.4f}; lr: {lr:.4f}"
-                )
-            )
+            # pbar.set_description(
+            #     (
+            #         f"perceptual: {p_loss.item():.4f}; noise regularize: {n_loss.item():.4f};"
+            #         f" mse: {mse_loss.item():.4f}; lr: {lr:.4f}"
+            #     )
+            # )
 
         img_gen, _ = g_ema([latent_path[-1]], input_is_latent=True, noise=noises)
         img_ar = make_image(img_gen)
-        
-        # TODO: make it parallel (don't gain much), maybe using cache first and parallelly save it (shoud not be too big size)
+
+        # save projected latent and reversed images        
         for i, fname in enumerate(fnames):
             noise_single = []
             for noise in noises:
