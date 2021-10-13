@@ -6,7 +6,7 @@ import torch
 from torch import optim
 from torch.nn import functional as F
 from torchvision import transforms
-
+from torch import nn
 
 import lpips
 from model import Generator
@@ -165,6 +165,8 @@ if __name__ == "__main__":
     g_ema = Generator(args.size, 512, 8)
     g_ema.load_state_dict(torch.load(args.ckpt)["g_ema"], strict=False)
     g_ema.eval()
+    if torch.cuda.device_count() > 1: 
+        g_ema = nn.DataParallel(g_ema,device_ids=[int(device_id.strip() ) for  device_id in args.gpu.split(',')])
     g_ema = g_ema.to(args.device)
 
     n_mean_latent = args.n_mean_latent  # 1000
