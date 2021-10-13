@@ -16,7 +16,8 @@ class CustomDataSet(Dataset):
             print(f"Continue projection from previous process that have finished projecting {len(completed_images)} images")
             if index_range != None: print(f"total in-range completion: {len(set(all_imgs).intersection(set(all_imgs)))} images")
             all_imgs = [img for img in all_imgs if img not in completed_images]
-        print(f"total images to be process: {len(all_imgs)} images, within range [{index_range}]")
+        if index_range != None:  print(f"total images to be process: {len(all_imgs)} images, within range [{index_range}]")
+        else: print(f"total images to be process: {len(all_imgs)} images")
         self.total_imgs = natsorted(all_imgs)
 
     def __len__(self):
