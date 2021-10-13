@@ -137,8 +137,9 @@ if __name__ == "__main__":
         os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu  # new add by gu
     cudnn.benchmark = True
 
-    torch.cuda.set_device(torch.device('cuda',int(args.gpu[0])))
+    
     gpu_ids = sorted([int(device_id.strip() ) for  device_id in args.gpu.split(',')])
+    torch.cuda.set_device(torch.device('cuda',gpu_ids[0]))
     # transform
     resize = min(args.size, 256)
     transform = transforms.Compose(
