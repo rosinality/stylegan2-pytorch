@@ -138,7 +138,7 @@ if __name__ == "__main__":
     cudnn.benchmark = True
 
     torch.cuda.set_device(torch.device('cuda',int(args.gpu[0])))
-    gpu_ids = [int(device_id.strip() ) for  device_id in args.gpu.split(',')]
+    gpu_ids = sorted([int(device_id.strip() ) for  device_id in args.gpu.split(',')])
     # transform
     resize = min(args.size, 256)
     transform = transforms.Compose(
@@ -189,7 +189,7 @@ if __name__ == "__main__":
         print(f"lpips's default device idx : {lpips_default_device_idx}")
     lpips_cuda = torch.device(f'cuda:{gpu_ids[lpips_default_device_idx]}')
     print(f"lpips's default cuda : {lpips_cuda}")
-    percept = lpips.PerceptualLoss(model="net-lin", net="vgg", use_gpu=args.device.startswith("cuda"), gpu_ids =lpips_gpu_ids,default_device_idx=lpips_default_device_idx).cuda(lpips_cuda) # TODO: lpips_default_device_idx is not being used
+    percept = lpips.PerceptualLoss(model="net-lin", net="vgg", use_gpu=args.device.startswith("cuda"), gpu_ids =lpips_gpu_ids,default_device_idx=lpips_default_device_idx) # TODO: lpips_default_device_idx is not being used
 
     # if torch.cuda.device_count() > 1: 
     #     cuda1 = torch.device('cuda:1')
