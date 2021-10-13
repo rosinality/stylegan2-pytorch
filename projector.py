@@ -246,6 +246,8 @@ if __name__ == "__main__":
                 )
                 img_gen = img_gen.mean([3, 5])
 
+            
+            print(f"img_gen device: {img_gen.get_device()}, imgs device:{imgs.get_device()}" )
             p_loss = percept(img_gen, imgs).sum()
             n_loss = noise_regularize(noises)
             mse_loss = F.mse_loss(img_gen, imgs)
