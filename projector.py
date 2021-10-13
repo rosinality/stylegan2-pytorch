@@ -189,7 +189,9 @@ if __name__ == "__main__":
         fnames,imgs =batch
         imgs = imgs.to(args.device) if torch.cuda.device_count() >= 1 else imgs
 
-        noises_single = g_ema.make_noise()
+        if torch.cuda.device_count() > 1: noises_single = g_ema.module.make_noise()
+        else:  noises_single = g_ema.make_noise()
+
         noises = []
         for noise in noises_single:
             noises.append(noise.repeat(imgs.shape[0], 1, 1, 1).normal_())
@@ -197,7 +199,8 @@ if __name__ == "__main__":
         latent_in = latent_mean.detach().clone().unsqueeze(0).repeat(imgs.shape[0], 1)
 
         if args.w_plus:
-            latent_in = latent_in.unsqueeze(1).repeat(1, g_ema.n_latent, 1)
+            if torch.cuda.device_count() > 1: latent_in = latent_in.unsqueeze(1).repeat(1, g_ema.module.n_latent, 1) 
+            else: latent_in = latent_in.unsqueeze(1).repeat(1, g_ema.n_latent, 1)
 
         latent_in.requires_grad = True
 
