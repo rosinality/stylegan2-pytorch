@@ -178,8 +178,13 @@ if __name__ == "__main__":
         latent_std = ((latent_out - latent_mean).pow(2).sum() / n_mean_latent) ** 0.5
 
     # percept will be Dataprallel already if we use multiple-gpu : parameter "gpu_ids"
-    default_device_idx = 1 if torch.cuda.device_count() > 1 else 0 # I create this parameter to choose default devide for lpips
-    percept = lpips.PerceptualLoss(model="net-lin", net="vgg", use_gpu=args.device.startswith("cuda"), gpu_ids = [int(device_id.strip() ) for  device_id in args.gpu.split(',')],default_device_idx=default_device_idx)
+    gpu_ids = [int(device_id.strip() ) for  device_id in args.gpu.split(',')]
+    lpips_default_device_idx = 0
+    lpips_gpu_ids = list(gpu_ids)
+    if torch.cuda.device_count() > 1: 
+        lpips_default_device_idx = 1   # I create this parameter to choose default devide for lpips
+        lpips_gpu_ids[0],lpips_gpu_ids[lpips_default_device_idx] = lpips_gpu_ids[lpips_default_device_idx],lpips_gpu_ids[0]  # swap the first index; the first index will be default cuda of LPIPS (default of Dataparallel)
+    percept = lpips.PerceptualLoss(model="net-lin", net="vgg", use_gpu=args.device.startswith("cuda"), gpu_ids =lpips_gpu_ids,default_device_idx=lpips_default_device_idx)
 
     # if torch.cuda.device_count() > 1: 
     #     cuda1 = torch.device('cuda:1')
