@@ -154,8 +154,7 @@ if __name__ == "__main__":
         # print(f"Continue projection from previous process that have finished projecting {len(completed_images)} images")
         my_dataset = CustomDataSet(args.img_path, transform=transform, completed_images=completed_images,index_range=args.index_range)
         print(f"total to project: {len(my_dataset.total_imgs)}")
-
-    my_dataset = CustomDataSet(args.img_path, transform=transform, index_range=args.index_range)
+    else: my_dataset = CustomDataSet(args.img_path, transform=transform, index_range=args.index_range)
     dataloader = DataLoader(my_dataset , batch_size=args.batch_size, shuffle=False, 
                                num_workers=4, drop_last=True)
     print(f"Dataloader: total_imgs:{len(my_dataset.total_imgs)} , batch_size {args.batch_size}")
@@ -178,12 +177,12 @@ if __name__ == "__main__":
         latent_mean = latent_out.mean(0)
         latent_std = ((latent_out - latent_mean).pow(2).sum() / n_mean_latent) ** 0.5
 
-    percept = lpips.PerceptualLoss(
-        model="net-lin", net="vgg", use_gpu=args.device.startswith("cuda"), 
-    )
-    if torch.cuda.device_count() > 1: 
-        cuda1 = torch.device('cuda:1')
-        percept = nn.DataParallel(percept,device_ids=[int(device_id.strip() ) for  device_id in args.gpu.split(',')]).to(cuda1)
+    # percept will be Dataprallel already if we use multiple-gpu : parameter "gpu_ids"
+    percept = lpips.PerceptualLoss(model="net-lin", net="vgg", use_gpu=args.device.startswith("cuda"), gpu_ids = [int(device_id.strip() ) for  device_id in args.gpu.split(',')])
+
+    # if torch.cuda.device_count() > 1: 
+    #     cuda1 = torch.device('cuda:1')
+    #     percept = nn.DataParallel(percept,device_ids=[int(device_id.strip() ) for  device_id in args.gpu.split(',')]).to(cuda1)
 
     print(f"the result will be saved at: {args.output_path}")
     print("start projection")
