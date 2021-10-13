@@ -186,7 +186,9 @@ if __name__ == "__main__":
     if torch.cuda.device_count() > 1: 
         lpips_default_device_idx = args.lpips_default_device_idx   # I create this parameter to choose default devide for lpips
         lpips_gpu_ids[0],lpips_gpu_ids[lpips_default_device_idx] = lpips_gpu_ids[lpips_default_device_idx],lpips_gpu_ids[0]  # swap the first index; the first index will be default cuda of LPIPS (default of Dataparallel)
+        print(f"lpips's default device idx : {lpips_default_device_idx}")
     lpips_cuda = torch.device(f'cuda:{gpu_ids[lpips_default_device_idx]}')
+    print(f"lpips's default cuda : {lpips_cuda}")
     percept = lpips.PerceptualLoss(model="net-lin", net="vgg", use_gpu=args.device.startswith("cuda"), gpu_ids =lpips_gpu_ids,default_device_idx=lpips_default_device_idx).cuda(lpips_cuda) # TODO: lpips_default_device_idx is not being used
 
     # if torch.cuda.device_count() > 1: 
