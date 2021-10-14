@@ -102,8 +102,8 @@ if __name__ == "__main__":
     parser.add_argument("--device", default='cuda',choices=['cuda','cpu']) 
     parser.add_argument("--n_mean_latent",type=int, default=1000) 
     parser.add_argument("-o","--output_path",default='projected_output') 
-    parser.add_argument("--tqdm_off",action='store_true',default='turn on tqdm progressive bar off')
-    parser.add_argument("--continue_project",action='store_true',default='continue projecting process')
+    parser.add_argument("--tqdm_off",action='store_true',help='turn on tqdm progressive bar off')
+    parser.add_argument("--continue_project",action='store_true',help='continue projecting process')
     parser.add_argument("--index_range",type=str,default=None,help='index range of images of interest eg 0,3000 (splited by comma) --> project images 0 - 2999th')
     parser.add_argument("--lpips_default_device_idx",type=int, default=1,help="lpips's default device idx")
     
