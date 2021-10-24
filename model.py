@@ -208,6 +208,7 @@ class ModulatedConv2d(nn.Module):
         self.scale = 1 / math.sqrt(fan_in)
         self.padding = kernel_size // 2
 
+        # weight of conv2d
         self.weight = nn.Parameter(
             torch.randn(1, out_channel, in_channel, kernel_size, kernel_size)
         )
@@ -255,11 +256,11 @@ class ModulatedConv2d(nn.Module):
 
             return out
 
-        style = self.modulation(style).view(batch, 1, in_channel, 1, 1)
-        weight = self.scale * self.weight * style
+        style = self.modulation(style).view(batch, 1, in_channel, 1, 1) # I'm not sure, but I guess this is "A" in the paper, s = A(latent_w)  : laten_w is stlye
+        weight = self.scale * self.weight * style # modulated_w =  s * w 
 
         if self.demodulate:
-            demod = torch.rsqrt(weight.pow(2).sum([2, 3, 4]) + 1e-8)
+            demod = torch.rsqrt(weight.pow(2).sum([2, 3, 4]) + 1e-8)  # torch.rsqrt(x) = 1/sqr()
             weight = weight * demod.view(batch, self.out_channel, 1, 1, 1)
 
         weight = weight.view(
@@ -507,8 +508,9 @@ class Generator(nn.Module):
         noise=None,
         randomize_noise=True,
     ):
+        # style or latent here is "w" in the paper (the one that processed from noise through a network )
         if not input_is_latent:
-            styles = [self.style(s) for s in styles]
+            styles = [self.style(s) for s in styles]     
 
         if noise is None:
             if randomize_noise:

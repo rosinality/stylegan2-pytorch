@@ -266,16 +266,14 @@ if __name__ == "__main__":
             if (i + 1) % 100 == 0:
                 latent_path.append(latent_in.detach().clone())
 
-            # pbar.set_description(
-            #     (
-            #         f"perceptual: {p_loss.item():.4f}; noise regularize: {n_loss.item():.4f};"
-            #         f" mse: {mse_loss.item():.4f}; lr: {lr:.4f}"
-            #     )
-            # )
 
         img_gen, _ = g_ema([latent_path[-1]], input_is_latent=True, noise=noises)
         img_ar = make_image(img_gen)
-
+        
+        print(f"latent_path[-1].shape : {latent_path[-1].shape}")
+        print(f"img_gen.shape : {img_gen.shape}")
+        print(f"img_ar.shape : {img_ar.shape}")
+        
         # save projected latent and reversed images        
         for i, fname in enumerate(fnames):
             noise_single = []
