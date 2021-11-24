@@ -518,7 +518,7 @@ class Generator(nn.Module):
                     getattr(self.noises, f"noise_{i}") for i in range(self.num_layers)
                 ]
 
-        if truncation < 1:
+        if truncation > 0.0:
             style_t = []
 
             for style in styles:
