@@ -9,7 +9,18 @@ from torch.nn import functional as F
 from torch.autograd import Function
 
 from op import FusedLeakyReLU, fused_leaky_relu, upfirdn2d, conv2d_gradfix
-from model import ModulatedConv2d, StyledConv, ConstantInput, PixelNorm, Upsample, Downsample, Blur, EqualLinear, ConvLayer
+from model import (
+    ModulatedConv2d,
+    StyledConv,
+    ConstantInput,
+    PixelNorm,
+    Upsample,
+    Downsample,
+    Blur,
+    EqualLinear,
+    ConvLayer,
+)
+
 
 def get_haar_wavelet(in_channels):
     haar_wav_l = 1 / (2 ** 0.5) * torch.ones(1, 2)
@@ -20,47 +31,88 @@ def get_haar_wavelet(in_channels):
     haar_wav_lh = haar_wav_h.T * haar_wav_l
     haar_wav_hl = haar_wav_l.T * haar_wav_h
     haar_wav_hh = haar_wav_h.T * haar_wav_h
-    
+
     return haar_wav_ll, haar_wav_lh, haar_wav_hl, haar_wav_hh
+
+
+def dwt_init(x):
+    x01 = x[:, :, 0::2, :] / 2
+    x02 = x[:, :, 1::2, :] / 2
+    x1 = x01[:, :, :, 0::2]
+    x2 = x02[:, :, :, 0::2]
+    x3 = x01[:, :, :, 1::2]
+    x4 = x02[:, :, :, 1::2]
+    x_LL = x1 + x2 + x3 + x4
+    x_HL = -x1 - x2 + x3 + x4
+    x_LH = -x1 + x2 - x3 + x4
+    x_HH = x1 - x2 - x3 + x4
+
+    return torch.cat((x_LL, x_HL, x_LH, x_HH), 1)
+
+
+def iwt_init(x):
+    r = 2
+    in_batch, in_channel, in_height, in_width = x.size()
+    # print([in_batch, in_channel, in_height, in_width])
+    out_batch, out_channel, out_height, out_width = (
+        in_batch,
+        int(in_channel / (r ** 2)),
+        r * in_height,
+        r * in_width,
+    )
+    x1 = x[:, 0:out_channel, :, :] / 2
+    x2 = x[:, out_channel : out_channel * 2, :, :] / 2
+    x3 = x[:, out_channel * 2 : out_channel * 3, :, :] / 2
+    x4 = x[:, out_channel * 3 : out_channel * 4, :, :] / 2
+
+    h = torch.zeros([out_batch, out_channel, out_height, out_width]).float().cuda()
+
+    h[:, :, 0::2, 0::2] = x1 - x2 - x3 + x4
+    h[:, :, 1::2, 0::2] = x1 - x2 + x3 - x4
+    h[:, :, 0::2, 1::2] = x1 + x2 - x3 - x4
+    h[:, :, 1::2, 1::2] = x1 + x2 + x3 + x4
+
+    return h
 
 
 class HaarTransform(nn.Module):
     def __init__(self, in_channels):
         super().__init__()
-        
+
         ll, lh, hl, hh = get_haar_wavelet(in_channels)
-    
-        self.register_buffer('ll', ll)
-        self.register_buffer('lh', lh)
-        self.register_buffer('hl', hl)
-        self.register_buffer('hh', hh)
-        
+
+        self.register_buffer("ll", ll)
+        self.register_buffer("lh", lh)
+        self.register_buffer("hl", hl)
+        self.register_buffer("hh", hh)
+
     def forward(self, input):
         ll = upfirdn2d(input, self.ll, down=2)
         lh = upfirdn2d(input, self.lh, down=2)
         hl = upfirdn2d(input, self.hl, down=2)
         hh = upfirdn2d(input, self.hh, down=2)
-        
+
         return torch.cat((ll, lh, hl, hh), 1)
-    
+
+
 class InverseHaarTransform(nn.Module):
     def __init__(self, in_channels):
         super().__init__()
-        
+
         ll, lh, hl, hh = get_haar_wavelet(in_channels)
 
-        self.register_buffer('ll', ll)
-        self.register_buffer('lh', -lh)
-        self.register_buffer('hl', -hl)
-        self.register_buffer('hh', hh)
-        
+        self.register_buffer("ll", ll)
+        self.register_buffer("lh", -lh)
+        self.register_buffer("hl", -hl)
+        self.register_buffer("hh", hh)
+
     def forward(self, input):
         ll, lh, hl, hh = input.chunk(4, 1)
         ll = upfirdn2d(ll, self.ll, up=2, pad=(1, 0, 1, 0))
         lh = upfirdn2d(lh, self.lh, up=2, pad=(1, 0, 1, 0))
         hl = upfirdn2d(hl, self.hl, up=2, pad=(1, 0, 1, 0))
         hh = upfirdn2d(hh, self.hh, up=2, pad=(1, 0, 1, 0))
-        
+
         return ll + lh + hl + hh
 
 
@@ -299,7 +351,7 @@ class FromRGB(nn.Module):
             self.downsample = Downsample(blur_kernel)
             self.dwt = HaarTransform(3)
 
-        self.conv = ConvLayer(3 * 4, out_channel, 1)
+        self.conv = ConvLayer(3 * 4, out_channel, 3)
 
     def forward(self, input, skip=None):
         if self.downsample:
