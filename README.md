@@ -45,6 +45,8 @@ For example, if you cloned repositories in ~/stylegan2 and downloaded stylegan2-
 
 This will create converted stylegan2-ffhq-config-f.pt file.
 
+Alternatively, the stylegan2-ffhq-config-f.pt can be found at https://drive.google.com/file/d/1EC34VzQ-7W6X1t9az-GEFOWX1uYPpW8w/view.
+
 ### Generate samples
 
 > python generate.py --sample N_FACES --pics N_PICS --ckpt PATH_CHECKPOINT
