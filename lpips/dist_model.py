@@ -27,7 +27,7 @@ class DistModel(BaseModel):
 
     def initialize(self, model='net-lin', net='alex', colorspace='Lab', pnet_rand=False, pnet_tune=False, model_path=None,
             use_gpu=True, printNet=False, spatial=False, 
-            is_train=False, lr=.0001, beta1=0.5, version='0.1', gpu_ids=[0]):
+            is_train=False, lr=.0001, beta1=0.5, version='0.1', gpu_ids=[0], default_device_idx=0):
         '''
         INPUTS
             model - ['net-lin'] for linearly calibrated network
@@ -96,6 +96,7 @@ class DistModel(BaseModel):
             self.net.eval()
 
         if(use_gpu):
+            # default_device_id = gpu_ids[default_device_idx] if len(gpu_ids) > 1 else 0
             self.net.to(gpu_ids[0])
             self.net = torch.nn.DataParallel(self.net, device_ids=gpu_ids)
             if(self.is_train):

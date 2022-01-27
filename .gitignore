@@ -131,3 +131,5 @@ dmypy.json
 wandb/
 *.lmdb/
 *.pkl
+550000.pt
+sample/

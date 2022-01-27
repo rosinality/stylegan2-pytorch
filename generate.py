@@ -4,9 +4,11 @@ import torch
 from torchvision import utils
 from model import Generator
 from tqdm import tqdm
+import os.path as osp
+import os
 
 
-def generate(args, g_ema, device, mean_latent):
+def generate(args, g_ema, device, mean_latent,output_path):
 
     with torch.no_grad():
         g_ema.eval()
@@ -19,7 +21,7 @@ def generate(args, g_ema, device, mean_latent):
 
             utils.save_image(
                 sample,
-                f"sample/{str(i).zfill(6)}.png",
+                osp.join(output_path,f"{str(i).zfill(6)}.png"),
                 nrow=1,
                 normalize=True,
                 range=(-1, 1),
@@ -53,7 +55,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--ckpt",
         type=str,
-        default="stylegan2-ffhq-config-f.pt",
+        default="checkpoint/stylegan2-ffhq-config-f.pt",
         help="path to the model checkpoint",
     )
     parser.add_argument(
@@ -63,7 +65,18 @@ if __name__ == "__main__":
         help="channel multiplier of the generator. config-f = 2, else = 1",
     )
 
+    parser.add_argument(
+        '-o',
+        "--output_path",
+        type=str,
+        default="sample",
+        help="root path save sample",
+    )
     args = parser.parse_args()
+
+    args.output_path = osp.join( args.output_path,f"{osp.basename(args.ckpt).split('.')[0]}_{args.size}")
+    os.makedirs(args.output_path,exist_ok=True)
+
 
     args.latent = 512
     args.n_mlp = 8
@@ -73,7 +86,7 @@ if __name__ == "__main__":
     ).to(device)
     checkpoint = torch.load(args.ckpt)
 
-    g_ema.load_state_dict(checkpoint["g_ema"])
+    g_ema.load_state_dict(checkpoint["g_ema"], strict=False)
 
     if args.truncation < 1:
         with torch.no_grad():
@@ -81,4 +94,4 @@ if __name__ == "__main__":
     else:
         mean_latent = None
 
-    generate(args, g_ema, device, mean_latent)
+    generate(args, g_ema, device, mean_latent,args.output_path)
