@@ -22,7 +22,7 @@ def generate(args, g_ema, device, mean_latent):
                 f"sample/{str(i).zfill(6)}.png",
                 nrow=1,
                 normalize=True,
-                range=(-1, 1),
+                range_value=(-1, 1),
             )
 
 

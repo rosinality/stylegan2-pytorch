@@ -297,5 +297,5 @@ if __name__ == "__main__":
     print(img_diff.abs().max())
 
     utils.save_image(
-        img_concat, name + ".png", nrow=n_sample, normalize=True, range=(-1, 1)
+        img_concat, name + ".png", nrow=n_sample, normalize=True, range_value=(-1, 1)
     )
