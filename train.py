@@ -431,7 +431,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--saveiter",
         type=int,
-        default=10000
+        default=10000,
         help="save ckpt every n iterations')
 
     args = parser.parse_args() 
