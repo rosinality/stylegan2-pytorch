@@ -314,7 +314,7 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
                         range=(-1, 1),
                     )
 
-            if i % 10000 == 0:
+            if i % int(args.saveiter) == 0:
                 torch.save(
                     {
                         "g": g_module.state_dict(),
@@ -427,8 +427,14 @@ if __name__ == "__main__":
         default=256,
         help="probability update interval of the adaptive augmentation",
     )
+    
+    parser.add_argument(
+        "--saveiter",
+        type=int,
+        default=10000
+        help="save ckpt every n iterations')
 
-    args = parser.parse_args()
+    args = parser.parse_args() 
 
     n_gpu = int(os.environ["WORLD_SIZE"]) if "WORLD_SIZE" in os.environ else 1
     args.distributed = n_gpu > 1
