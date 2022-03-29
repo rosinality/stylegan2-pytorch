@@ -11,12 +11,7 @@ from torch.utils import data
 import torch.distributed as dist
 from torchvision import transforms, utils
 from tqdm import tqdm
-
-try:
-    import wandb
-
-except ImportError:
-    wandb = None
+import wandb
 
 
 from dataset import MultiResolutionDataset
@@ -395,7 +390,7 @@ if __name__ == "__main__":
         help="channel multiplier factor for the model. config-f = 2, else = 1",
     )
     parser.add_argument(
-        "--wandb", action="store_true", help="use weights and biases logging"
+        "--wandb", type=str, help="use weights and biases logging"
     )
     parser.add_argument(
         "--local_rank", type=int, default=0, help="local rank for distributed training"
@@ -497,8 +492,8 @@ if __name__ == "__main__":
         discriminator.load_state_dict(ckpt["d"])
         g_ema.load_state_dict(ckpt["g_ema"])
 
-        #g_optim.load_state_dict(ckpt["g_optim"])
-        #d_optim.load_state_dict(ckpt["d_optim"])
+        g_optim.load_state_dict(ckpt["g_optim"]) if "g_optim" in list(ckpt) else print("Generator optimization weights are absent ... skipping")
+        d_optim.load_state_dict(ckpt["d_optim"]) if "d_optim" in list(ckpt) else print("Discriminator optimization weights are absent ... skipping")
 
     if args.distributed:
         generator = nn.parallel.DistributedDataParallel(
@@ -531,7 +526,7 @@ if __name__ == "__main__":
         drop_last=True,
     )
 
-    if get_rank() == 0 and wandb is not None and args.wandb:
-        wandb.init(project="stylegan 2")
+    if  args.wandb is not None:
+        wandb.init(project=args.wandb[1], entity=args.wandb[0])
 
     train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, device)
