@@ -390,7 +390,7 @@ if __name__ == "__main__":
         help="channel multiplier factor for the model. config-f = 2, else = 1",
     )
     parser.add_argument(
-        "--wandb", type=str, help="use weights and biases logging"
+        "--wandb", type=str, nargs=2 ,help="use weights and biases logging"
     )
     parser.add_argument(
         "--local_rank", type=int, default=0, help="local rank for distributed training"
