@@ -475,9 +475,7 @@ if __name__ == "__main__":
         lr=args.lr * d_reg_ratio,
         betas=(0 ** d_reg_ratio, 0.99 ** d_reg_ratio),
     )
-    
-    if args.saveiter is not None:
-        assert args.saveiter.isnumeric(), "Invalid checkpoint save iteration"
+
 
     if args.ckpt is not None:
         print("load model:", args.ckpt)
