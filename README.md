@@ -108,3 +108,6 @@ Model details and custom CUDA kernel codes are from official repostiories: https
 Codes for Learned Perceptual Image Patch Similarity, LPIPS came from https://github.com/richzhang/PerceptualSimilarity
 
 To match FID scores more closely to tensorflow official implementations, I have used FID Inception V3 implementations in https://github.com/mseitzer/pytorch-fid
+
+
+    # export PATH=/usr/local/cuda-11.5/bin:$PATH

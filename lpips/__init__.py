@@ -4,11 +4,15 @@ from __future__ import division
 from __future__ import print_function
 
 import numpy as np
-from skimage.measure import compare_ssim
+from skimage.metrics import structural_similarity as compare_ssim
 import torch
+from torch import nn
+from torch.nn import functional as F
+
 from torch.autograd import Variable
 
 from lpips import dist_model
+from model import Discriminator
 
 class PerceptualLoss(torch.nn.Module):
     def __init__(self, model='net-lin', net='alex', colorspace='rgb', spatial=False, use_gpu=True, gpu_ids=[0]): # VGG using our perceptually-learned weights (LPIPS metric)
@@ -38,6 +42,77 @@ class PerceptualLoss(torch.nn.Module):
             pred = 2 * pred  - 1
 
         return self.model.forward(target, pred)
+class discri_loss(nn.Module):
+
+    def __init__(self,model):
+        super(discri_loss, self).__init__()
+        self.model = model
+        chs =[3,7]
+
+        self.slice1 = torch.nn.Sequential(*list(self.model.convs)[:chs[0]])
+        self.slice2 = torch.nn.Sequential(*list(self.model.convs)[chs[0]:chs[1]])
+
+    def forward(self,imp1,imp2,normalize=False):
+        # print(imp1.shape)
+        # print(imp2.shape)
+        if normalize:
+            imp1 = 2 * imp1  - 1
+            imp2 = 2 * imp2  - 1
+        loss = 0
+        imp1 = self.slice1(imp1)
+        imp2 = self.slice1(imp2)
+        loss += F.mse_loss(F.normalize(imp1),F.normalize(imp2))
+        imp1 = self.slice2(imp1)
+        imp2 = self.slice2(imp2)
+        loss += F.mse_loss(F.normalize(imp1),F.normalize(imp2))
+        # loss += F.mse_loss(imp1,imp2)
+        return loss
+
+
+
+
+class loss_fun(nn.Module):
+
+  def __init__(self,l_mse=1,l_perceptual=0,
+               l_diss=0,l_diss_model=None,
+               device=None):
+    super(loss_fun,self).__init__()
+    if device is None:
+      device = torch.device("cuda" if torch.cuda.is_available() else 'cpu')
+
+    self.l_perceptual = l_perceptual
+    if l_perceptual != 0:
+      self.perceptual = PerceptualLoss(
+        model="net-lin", net="vgg", use_gpu=device
+        )
+    self.l_mse = l_mse
+    if l_mse != 0:
+      self.mse = nn.MSELoss()
+    self.l_diss = l_diss
+    if l_diss:
+        assert l_diss_model is not None, "l_diss_model should not be None"
+        
+        self.diss_model = discri_loss(l_diss_model)
+
+    
+  def forward(self,img1,img2,noises=None,normalize=False):
+    loss =0
+    loss_dict = {}
+    if self.l_perceptual != 0:
+        loss1 = self.l_perceptual *self.perceptual(img1,img2,normalize).sum()
+        loss_dict['percetual'] = loss1.item()
+        loss += loss1
+
+    if self.l_mse !=0:
+        loss1 = self.l_mse * self.mse(img1,img2) 
+        loss_dict['mse'] = loss1.item()
+        loss += loss1    
+    if self.l_diss !=0:
+        loss1 = self.l_diss * self.diss_model(img1,img2,normalize)
+        loss_dict['diss'] = loss1.item()
+        loss += loss1
+    return loss,loss_dict
+
 
 def normalize_tensor(in_feat,eps=1e-10):
     norm_factor = torch.sqrt(torch.sum(in_feat**2,dim=1,keepdim=True))
@@ -147,6 +222,18 @@ def voc_ap(rec, prec, use_07_metric=False):
         # and sum (\Delta recall) * prec
         ap = np.sum((mrec[i + 1] - mrec[i]) * mpre[i + 1])
     return ap
+
+def make_image(tensor):
+    return (
+        tensor.clamp_(min=-1, max=1)
+        .add(1)
+        .div_(2)
+        .mul(255)
+        .type(torch.uint8)
+        .permute(1,2,0)
+        .numpy()
+    )
+
 
 def tensor2im(image_tensor, imtype=np.uint8, cent=1., factor=255./2.):
 # def tensor2im(image_tensor, imtype=np.uint8, cent=1., factor=1.):
