@@ -27,6 +27,13 @@ if __name__ == "__main__":
         default=2,
         help='channel multiplier factor. config-f = 2, else = 1',
     )
+    parser.add_argument(
+        "-d_num",
+        "--degree_num",
+        type=int,
+        default=3,
+        help="number of scalar factors for moving latent vectors along eigenvector",
+    )
     parser.add_argument("--ckpt", type=str, required=True, help="stylegan2 checkpoints")
     parser.add_argument(
         "--size", type=int, default=256, help="output image size of the generator"
@@ -64,31 +71,37 @@ if __name__ == "__main__":
     latent = torch.randn(args.n_sample, 512, device=args.device)
     latent = g.get_latent(latent)
 
-    direction = args.degree * eigvec[:, args.index].unsqueeze(0)
+    direction = eigvec[:, args.index].unsqueeze(0)
 
-    img, _ = g(
-        [latent],
-        truncation=args.truncation,
-        truncation_latent=trunc,
-        input_is_latent=True,
-    )
-    img1, _ = g(
-        [latent + direction],
-        truncation=args.truncation,
-        truncation_latent=trunc,
-        input_is_latent=True,
-    )
-    img2, _ = g(
-        [latent - direction],
-        truncation=args.truncation,
-        truncation_latent=trunc,
-        input_is_latent=True,
-    )
+    img_dict = dict()
+
+    for u in torch.linspace(- args.degree, args.degree, args.degree_num):
+
+        img_batch, _ = g(
+            [latent + u * direction],
+            truncation=args.truncation,
+            truncation_latent=trunc,
+            input_is_latent=True,
+        )
+
+        for j in range(img_batch.shape[0]):
+
+            img = img_batch[j].unsqueeze(0)
+
+            try:
+                img_dict[j].append(img)
+            except KeyError:
+                img_dict[j] = [img]
+
+    img_list = [
+        torch.cat(img_dict[j], 0)
+        for j in range(args.n_sample)
+    ]
 
     grid = utils.save_image(
-        torch.cat([img1, img, img2], 0),
+        torch.cat(img_list, 0),
         f"{args.out_prefix}_index-{args.index}_degree-{args.degree}.png",
         normalize=True,
         range=(-1, 1),
-        nrow=args.n_sample,
+        nrow=args.degree_num,
     )
